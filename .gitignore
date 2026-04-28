@@ -1,0 +1,17 @@
+/node_modules
+/backend/node_modules
+/oh_modules
+/local.properties
+/.idea
+/.superpowers
+**/build
+/.hvigor
+.cxx
+/.clangd
+/.clang-format
+/.clang-tidy
+**/.test
+/.appanalyzer
+/backend/.env
+/backend/.npm-cache
+/backend/data

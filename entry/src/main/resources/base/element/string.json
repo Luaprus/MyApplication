@@ -1,0 +1,56 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "Health management module"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "Health manager home"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "Health Manager"
+    },
+    {
+      "name": "defaultForm_label",
+      "value": "Health card"
+    },
+    {
+      "name": "defaultForm_desc",
+      "value": "Health status card"
+    },
+    {
+      "name": "EntryFormAbility_desc",
+      "value": "Health manager card"
+    },
+    {
+      "name": "EntryFormAbility_label",
+      "value": "Health card"
+    },
+    {
+      "name": "widget_desc",
+      "value": "Daily health status"
+    },
+    {
+      "name": "widget_display_name",
+      "value": "Health Manager"
+    },
+    {
+      "name": "widget1_desc",
+      "value": "Daily health status"
+    },
+    {
+      "name": "widget1_display_name",
+      "value": "Health Manager"
+    },
+    {
+      "name": "read_imagevideo_reason",
+      "value": "Used to read photos for food calorie recognition."
+    },
+    {
+      "name": "activity_motion_reason",
+      "value": "Used to read pedometer data from your phone for step tracking."
+    }
+  ]
+}
