@@ -24,6 +24,10 @@ import { currentDayKey as currentDateKey, currentWeekDayKeys as weekDayKeys, dat
 import { clampUnitProgress, clampWeightKg as clampPlanWeightKg, displayWeightDraft as formatWeightDraft, parseWeightPlanWeeklyTarget, progressWidth as formatProgressWidth, weightDraftToKg as parseWeightDraftToKg, weightPlanStartWeight as getWeightPlanStartWeight, weightPlanTargetWeight as getWeightPlanTargetWeight, weightPlanValueLabel as getWeightPlanValueLabel, weightPlanValueText as getWeightPlanValueText, weightPlanWeekNumber as getWeightPlanWeekNumber } from '../models/WeightPlan';
 import { exerciseAdjustedCalories as getExerciseAdjustedCalories, exerciseBarHeights as getExerciseBarHeights, exerciseCaloriesForDuration, exerciseDailyAverage as getExerciseDailyAverage, exerciseDurationValue, exerciseGoalDaysThisWeek as getExerciseGoalDaysThisWeek, exerciseOptionsForCategory, exerciseRecordsForDay, exerciseWeekCalories as getExerciseWeekCalories, exerciseWeekLabels as getExerciseWeekLabels, selectedExerciseCalories } from '../models/ExerciseInsights';
 import { favoriteFoodRowKey as buildFavoriteFoodRowKey, favoriteFoodRows as buildFavoriteFoodRows, mealPresetRowKey as buildMealPresetRowKey, mealPresetRows as buildMealPresetRows } from '../models/CollectionRows';
+import { latestWaterRecord as getLatestWaterRecord, latestWaterRecordForDisplay as getLatestWaterRecordForDisplay, selectedDrinkName as getSelectedDrinkName, waterGoalMl as getWaterGoalMl, waterPresetRows as buildWaterPresetRows, waterProgressPercent as getWaterProgressPercent, waterRecordsForDay } from '../models/WaterInsights';
+import { applyMealCaloriesDelta as calculateMealCaloriesDelta, currentMealCaloriesValue as getCurrentMealCaloriesValue, mealCaloriesForType, mealCalorieTotals, MealCalorieTotals, mealRecordsForType } from '../models/MealInsights';
+import { goalDisplayText as getGoalDisplayText, goalPlanPreview as getGoalPlanPreview, profileBenefitCount as getProfileBenefitCount, profileHealthScore as getProfileHealthScore, profileInitial as getProfileInitial, profileMenuSubtitle as getProfileMenuSubtitle, weeklyGoalValueText as getWeeklyGoalValueText, weeklyProgressSummary as getWeeklyProgressSummary, weeklySuggestionSummary as getWeeklySuggestionSummary, weightTrendSummary as getWeightTrendSummary } from '../models/ProfileInsights';
+import { countMealsForDay, countWaterRecordsForDay, dayRecordDetails as buildDayRecordDetails, trendDayDetailText as buildTrendDayDetailText, weightTextForDay as buildWeightTextForDay } from '../models/TrendDetails';
 import { AuthModule, OnboardingModule } from './modules/AuthModule';
 import { RecordModule } from './modules/RecordModule';
 import { AiModule } from './modules/AiModule';
@@ -3057,64 +3061,23 @@ struct Index {
     let mealCount: number = this.mealCountForDay(dayKey);
     let waterCount: number = this.waterCountForDay(dayKey);
     let weightText: string = this.weightTextForDay(dayKey);
-    if (mealCount === 0 && waterCount === 0 && weightText === '--') {
-      return '\u8fd9\u4e00\u5929\u8fd8\u6ca1\u6709\u8bb0\u5f55\uff0c\u540e\u7eed\u8865\u5f55\u540e\u4f1a\u51fa\u73b0\u5728\u8fd9\u91cc\u3002';
-    }
-    return `\u9910\u98df ${mealCount} \u6761\uff0c\u996e\u6c34 ${waterCount} \u6761\uff0c\u4f53\u91cd ${weightText}\u3002`;
+    return buildTrendDayDetailText(mealCount, waterCount, weightText);
   }
 
   mealCountForDay(dayKey: string): number {
-    let count: number = 0;
-    for (let index = 0; index < this.mealRecords.length; index++) {
-      if (this.mealRecords[index].dayKey === dayKey) {
-        count += 1;
-      }
-    }
-    return count;
+    return countMealsForDay(this.mealRecords, dayKey);
   }
 
   waterCountForDay(dayKey: string): number {
-    let count: number = 0;
-    for (let index = 0; index < this.waterRecords.length; index++) {
-      if (this.waterRecords[index].dayKey === dayKey) {
-        count += 1;
-      }
-    }
-    return count;
+    return countWaterRecordsForDay(this.waterRecords, dayKey);
   }
 
   weightTextForDay(dayKey: string): string {
-    let latestWeight: number = latestWeightForDay(this.weightRecords, dayKey);
-    return latestWeight > 0 ? `${latestWeight.toFixed(1)}kg` : '--';
+    return buildWeightTextForDay(this.weightRecords, dayKey);
   }
 
   dayRecordDetails(dayKey: string): string[] {
-    let lines: string[] = [];
-    for (let index = 0; index < this.mealRecords.length; index++) {
-      let item: MealRecordItem = this.mealRecords[index];
-      if (item.dayKey === dayKey) {
-        lines.push(`${mealLabel(item.mealType)} \u00b7 ${item.time} \u00b7 ${item.name} ${item.calories}kcal`);
-      }
-    }
-    for (let index = 0; index < this.waterRecords.length; index++) {
-      let item: WaterRecordItem = this.waterRecords[index];
-      if (item.dayKey === dayKey) {
-        lines.push(`\u996e\u6c34 鐠?${item.time} 鐠?${item.drinkName} ${item.amount}ml`);
-      }
-    }
-    for (let index = 0; index < this.exerciseRecords.length; index++) {
-      let item: ExerciseRecordItem = this.exerciseRecords[index];
-      if (item.dayKey === dayKey) {
-        lines.push(`\u8fd0\u52a8 鐠?${item.time} 鐠?${item.name} ${item.duration}\u5206\u949f ${item.calories}kcal`);
-      }
-    }
-    for (let index = 0; index < this.weightRecords.length; index++) {
-      let item: WeightRecordItem = this.weightRecords[index];
-      if (item.dayKey === dayKey) {
-        lines.push(`\u4f53\u91cd 鐠?${item.time} 鐠?${item.value.toFixed(2)}kg`);
-      }
-    }
-    return lines.slice(0, 8);
+    return buildDayRecordDetails(dayKey, this.mealRecords, this.waterRecords, this.exerciseRecords, this.weightRecords);
   }
 
   smartReminders(): SmartReminder[] {
@@ -3204,22 +3167,11 @@ struct Index {
   }
 
   waterGoalMl(): number {
-    let baseGoal: number = Math.round(this.weight * 35);
-    if (baseGoal < 1500) {
-      baseGoal = 1500;
-    }
-    if (baseGoal > 2800) {
-      baseGoal = 2800;
-    }
-    return Math.round(baseGoal / 50) * 50;
+    return getWaterGoalMl(this.weight);
   }
 
   waterProgressPercent(): number {
-    let goal: number = this.waterGoalMl();
-    if (goal <= 0) {
-      return 0;
-    }
-    return Math.min(100, Math.round((this.currentDayWaterTotal() / goal) * 100));
+    return getWaterProgressPercent(this.currentDayWaterTotal(), this.waterGoalMl());
   }
 
   currentHealthDayKey(): string {
@@ -3230,14 +3182,7 @@ struct Index {
   }
 
   currentDayWaterRecords(): WaterRecordItem[] {
-    let todayKey: string = this.currentHealthDayKey();
-    let records: WaterRecordItem[] = [];
-    for (let index = 0; index < this.waterRecords.length; index++) {
-      if (this.waterRecords[index].dayKey === todayKey) {
-        records.push(this.waterRecords[index]);
-      }
-    }
-    return records;
+    return waterRecordsForDay(this.waterRecords, this.currentHealthDayKey());
   }
 
   currentDayWaterTotal(): number {
@@ -3249,14 +3194,7 @@ struct Index {
   }
 
   latestWaterRecordForDisplay(): WaterRecordItem | null {
-    let todayRecords: WaterRecordItem[] = this.currentDayWaterRecords();
-    if (todayRecords.length > 0) {
-      return todayRecords[0];
-    }
-    if (this.water > 0 && this.waterRecords.length > 0) {
-      return this.waterRecords[0];
-    }
-    return null;
+    return getLatestWaterRecordForDisplay(this.waterRecords, this.currentHealthDayKey(), this.water);
   }
 
   refreshWaterCardState(): void {
@@ -3269,11 +3207,7 @@ struct Index {
   }
 
   latestWaterRecord(): WaterRecordItem | null {
-    let todayRecords: WaterRecordItem[] = this.currentDayWaterRecords();
-    if (todayRecords.length === 0) {
-      return null;
-    }
-    return todayRecords[0];
+    return getLatestWaterRecord(this.waterRecords, this.currentHealthDayKey());
   }
 
   openWaterSheet(): void {
@@ -3291,11 +3225,7 @@ struct Index {
   }
 
   waterPresetRows(): DrinkPresetItem[][] {
-    let rows: DrinkPresetItem[][] = [];
-    for (let index = 0; index < this.waterPresets.length; index += 3) {
-      rows.push(this.waterPresets.slice(index, index + 3));
-    }
-    return rows;
+    return buildWaterPresetRows(this.waterPresets);
   }
 
 
@@ -3403,12 +3333,7 @@ struct Index {
   }
 
   selectedDrinkName(): string {
-    for (let index = 0; index < this.waterPresets.length; index++) {
-      if (this.waterPresets[index].id === this.selectedDrinkId) {
-        return this.waterPresets[index].label;
-      }
-    }
-    return '\u6c34';
+    return getSelectedDrinkName(this.waterPresets, this.selectedDrinkId);
   }
 
   saveWaterIntake(): void {
@@ -5899,29 +5824,12 @@ struct Index {
   }
 
   profileHealthScore(): number {
-    let score: number = 58;
-    score += Math.min(16, Math.floor(this.steps / 800));
-    score += Math.min(12, Math.floor(this.exerciseCaloriesBurned / 25));
-    score += Math.min(8, Math.floor(this.water / 250));
-    score += Math.min(6, this.streakDays);
-    return Math.max(60, Math.min(99, score));
+    return getProfileHealthScore(this.steps, this.exerciseCaloriesBurned, this.water, this.streakDays);
   }
 
   profileBenefitCount(): number {
-    let count: number = 4;
-    if (this.profileNotificationEnabled) {
-      count += 1;
-    }
-    if (this.profileAiDigestEnabled) {
-      count += 1;
-    }
-    if (this.profileStepSyncEnabled) {
-      count += 1;
-    }
-    if (this.profileWaterReminderEnabled) {
-      count += 1;
-    }
-    return count;
+    return getProfileBenefitCount(this.profileNotificationEnabled, this.profileAiDigestEnabled,
+      this.profileStepSyncEnabled, this.profileWaterReminderEnabled);
   }
 
   createWeightRecord(value: number, time: string, dayKey: string): WeightRecordItem {
@@ -6055,76 +5963,32 @@ struct Index {
   }
 
   weeklyGoalValueText(): string {
-    let matchResult: RegExpMatchArray | null = this.profileSignature.match(/\d+(\.\d+)?/);
-    if (matchResult && matchResult.length > 0) {
-      return matchResult[0];
-    }
-    return '0.3';
+    return getWeeklyGoalValueText(this.profileSignature);
   }
 
   weightTrendSummary(): string {
-    if (this.weekLoss > 0) {
-      return `\u672c\u5468\u76f8\u6bd4\u4e0a\u5468\u5df2\u4e0b\u964d ${this.weekLoss.toFixed(2)}kg\uff0c\u8282\u594f\u6bd4\u8f83\u7a33\u5b9a\u3002`;
-    }
-    if (this.weekLoss < 0) {
-      return `\u672c\u5468\u4f53\u91cd\u4e0a\u6d6e ${Math.abs(this.weekLoss).toFixed(2)}kg\uff0c\u53ef\u4ee5\u56de\u770b\u4e00\u4e0b\u665a\u9910\u548c\u52a0\u9910\u3002`;
-    }
-    return '\u672c\u5468\u4f53\u91cd\u57fa\u672c\u7ef4\u6301\u7a33\u5b9a\uff0c\u9002\u5408\u7ee7\u7eed\u4fdd\u6301\u5f53\u524d\u8282\u594f\u3002';
+    return getWeightTrendSummary(this.weekLoss);
   }
 
   weeklyProgressSummary(): string {
-    return `\u8fde\u7eed\u6253\u5361 ${this.streakDays} \u5929\uff0c\u5f53\u524d\u6b65\u6570 ${this.steps}\uff0c\u996e\u6c34 ${this.water}ml\uff0c\u8fd0\u52a8\u8bb0\u5f55 ${this.currentDayExerciseRecords().length} \u6761\u3002`;
+    return getWeeklyProgressSummary(this.streakDays, this.steps, this.water, this.currentDayExerciseRecords().length);
   }
 
   weeklySuggestionSummary(): string {
-    if (this.exerciseCaloriesBurned < 180) {
-      return '\u8fd9\u5468\u53ef\u4ee5\u518d\u589e\u52a0 1 \u6b21 20~30 \u5206\u949f\u7684\u8f7b\u4e2d\u5ea6\u8bad\u7ec3\uff0c\u8ba9\u6d88\u8017\u66f4\u8fde\u8d2f\u3002';
-    }
-    if (this.calories > 1800) {
-      return '\u4f60\u7684\u996e\u98df\u6444\u5165\u7565\u9ad8\uff0c\u665a\u9910\u53ef\u4ee5\u518d\u7b80\u5316\u4e00\u70b9\uff0c\u52a0\u9910\u4f18\u5148\u9009\u6c34\u679c\u6216\u9178\u5976\u3002';
-    }
-    return '\u73b0\u5728\u7684\u8282\u594f\u5f88\u597d\uff0c\u4f18\u5148\u7a33\u4f4f\u6253\u5361\u9891\u7387\uff0c\u8ba9\u4f53\u91cd\u53d8\u5316\u66f4\u5e73\u6ed1\u3002';
+    return getWeeklySuggestionSummary(this.exerciseCaloriesBurned, this.calories);
   }
 
   goalPlanPreview(): string {
-    let targetWeight: number = Number(this.onboardingTargetWeight.trim());
-    if (!Number.isNaN(targetWeight) && targetWeight > 0) {
-      let distance: number = Number(Math.abs(this.weight - targetWeight).toFixed(1));
-      let direction: string = this.weight >= targetWeight ? '\u51cf\u8102' : '\u589e\u91cd';
-      if (distance < 0.1) {
-        return `\u5f53\u524d ${this.weight.toFixed(1)}kg\uff0c\u5df2\u63a5\u8fd1\u76ee\u6807 ${targetWeight.toFixed(1)}kg\uff0c\u8fdb\u5165\u7ef4\u6301\u8282\u594f\uff0c\u6bcf\u5929 ${this.profileReminderTimeDraft} \u56de\u770b\u4e00\u6b21\u5373\u53ef\u3002`;
-      }
-      return `\u5f53\u524d ${this.weight.toFixed(1)}kg\uff0c\u76ee\u6807 ${targetWeight.toFixed(1)}kg\uff0c\u8fd8\u9700 ${direction} ${distance.toFixed(1)}kg\uff0c\u672c\u5468\u671f\u5f85\u8fdb\u5c55 ${this.profileWeeklyTargetDraft}kg\uff0c\u6bcf\u5929 ${this.profileReminderTimeDraft} \u63d0\u9192\u56de\u770b\u3002`;
-    }
-    return `\u9636\u6bb5\u76ee\u6807\uff1a${this.profileGoalDraft}\uff0c\u672c\u5468\u671f\u5f85\u8fdb\u5c55 ${this.profileWeeklyTargetDraft}kg\uff0c\u6bcf\u5929 ${this.profileReminderTimeDraft} \u63d0\u9192\u56de\u770b\u3002`;
+    return getGoalPlanPreview(this.weight, this.onboardingTargetWeight, this.profileGoalDraft,
+      this.profileWeeklyTargetDraft, this.profileReminderTimeDraft);
   }
 
   goalDisplayText(): string {
-    let targetWeight: number = Number(this.onboardingTargetWeight.trim());
-    if (!Number.isNaN(targetWeight) && targetWeight > 0) {
-      let delta: number = Number((this.weight - targetWeight).toFixed(1));
-      if (Math.abs(delta) < 0.1) {
-        return '\u8fdb\u5165\u7ef4\u6301\u671f';
-      }
-      if (delta > 0) {
-        return `\u51cf\u8102 ${delta.toFixed(1)}kg`;
-      }
-      return `\u589e\u91cd ${Math.abs(delta).toFixed(1)}kg`;
-    }
-    if (this.profileGoalText.trim().length > 0) {
-      return this.profileGoalText;
-    }
-    return '\u4fdd\u6301\u8bb0\u5f55';
+    return getGoalDisplayText(this.weight, this.onboardingTargetWeight, this.profileGoalText);
   }
 
   profileMenuSubtitle(item: ProfileMenuItem): string {
-    if (item.id === 2) {
-      return `\u76ee\u524d\u76ee\u6807\uff1a${this.goalDisplayText()}`;
-    }
-    if (item.id === 3) {
-      return `\u5f53\u524d\u8d26\u53f7\uff1a${this.profileEmail}`;
-    }
-    return item.subtitle;
+    return getProfileMenuSubtitle(item, this.goalDisplayText(), this.profileEmail);
   }
 
   authErrorMessage(error: Object | string): string {
@@ -6141,10 +6005,7 @@ struct Index {
   }
 
   profileInitial(): string {
-    if (this.profileName.length === 0) {
-      return 'U';
-    }
-    return this.profileName.substring(0, 1);
+    return getProfileInitial(this.profileName);
   }
 
   handleProfileMenu(item: ProfileMenuItem): void {
@@ -6367,42 +6228,25 @@ struct Index {
 
 
   mealCalories(type: MealType): number {
-    let total: number = 0;
-    this.mealRecords.forEach((item: MealRecordItem) => {
-      if (item.dayKey === this.currentDayKey() && item.mealType === type) {
-        total += item.calories;
-      }
-    });
-    return total;
+    return mealCaloriesForType(this.mealRecords, this.currentDayKey(), type);
   }
 
   currentMealCaloriesValue(): number {
-    if (this.activeMealType === 'breakfast') {
-      return this.breakfastCalories;
-    }
-    if (this.activeMealType === 'lunch') {
-      return this.lunchCalories;
-    }
-    if (this.activeMealType === 'dinner') {
-      return this.dinnerCalories;
-    }
-    return this.snackCalories;
+    return getCurrentMealCaloriesValue(this.activeMealType, {
+      total: this.calories,
+      breakfast: this.breakfastCalories,
+      lunch: this.lunchCalories,
+      dinner: this.dinnerCalories,
+      snack: this.snackCalories
+    });
   }
 
   totalCaloriesIntake(): number {
-    let total: number = this.scannedCaloriesTotal;
-    this.mealRecords.forEach((item: MealRecordItem) => {
-      if (item.dayKey === this.currentDayKey()) {
-        total += item.calories;
-      }
-    });
-    return total;
+    return mealCalorieTotals(this.mealRecords, this.currentDayKey(), this.scannedCaloriesTotal).total;
   }
 
   currentMealRecords(): MealRecordItem[] {
-    return this.mealRecords
-      .filter((item: MealRecordItem) => item.dayKey === this.currentDayKey() && item.mealType === this.activeMealType)
-      .sort((left: MealRecordItem, right: MealRecordItem) => right.id - left.id);
+    return mealRecordsForType(this.mealRecords, this.currentDayKey(), this.activeMealType);
   }
 
   currentMealPresetRows(): MealPresetItem[][] {
@@ -6669,48 +6513,27 @@ struct Index {
   }
 
   syncCalories(records: MealRecordItem[] = this.mealRecords): void {
-    let total: number = this.scannedCaloriesTotal;
-    let breakfast: number = 0;
-    let lunch: number = 0;
-    let dinner: number = 0;
-    let todayKey: string = this.currentDayKey();
-    records.forEach((item: MealRecordItem) => {
-      if (item.dayKey !== todayKey) {
-        return;
-      }
-      total += item.calories;
-      if (item.mealType === 'breakfast') {
-        breakfast += item.calories;
-      } else if (item.mealType === 'lunch') {
-        lunch += item.calories;
-      } else if (item.mealType === 'dinner') {
-        dinner += item.calories;
-      }
-    });
-    this.breakfastCalories = breakfast;
-    this.lunchCalories = lunch;
-    this.dinnerCalories = dinner;
-    let snack: number = 0;
-    records.forEach((item: MealRecordItem) => {
-      if (item.dayKey === todayKey && item.mealType === 'snack') {
-        snack += item.calories;
-      }
-    });
-    this.snackCalories = snack;
-    this.calories = Math.max(0, total);
+    let totals: MealCalorieTotals = mealCalorieTotals(records, this.currentDayKey(), this.scannedCaloriesTotal);
+    this.breakfastCalories = totals.breakfast;
+    this.lunchCalories = totals.lunch;
+    this.dinnerCalories = totals.dinner;
+    this.snackCalories = totals.snack;
+    this.calories = totals.total;
   }
 
   applyMealCaloriesDelta(type: MealType, delta: number): void {
-    if (type === 'breakfast') {
-      this.breakfastCalories = Math.max(0, this.breakfastCalories + delta);
-    } else if (type === 'lunch') {
-      this.lunchCalories = Math.max(0, this.lunchCalories + delta);
-    } else if (type === 'dinner') {
-      this.dinnerCalories = Math.max(0, this.dinnerCalories + delta);
-    } else {
-      this.snackCalories = Math.max(0, this.snackCalories + delta);
-    }
-    this.calories = Math.max(0, this.scannedCaloriesTotal + this.breakfastCalories + this.lunchCalories + this.dinnerCalories + this.snackCalories);
+    let totals: MealCalorieTotals = calculateMealCaloriesDelta({
+      total: this.calories,
+      breakfast: this.breakfastCalories,
+      lunch: this.lunchCalories,
+      dinner: this.dinnerCalories,
+      snack: this.snackCalories
+    }, type, delta, this.scannedCaloriesTotal);
+    this.breakfastCalories = totals.breakfast;
+    this.lunchCalories = totals.lunch;
+    this.dinnerCalories = totals.dinner;
+    this.snackCalories = totals.snack;
+    this.calories = totals.total;
   }
 
   currentClock(): string {
