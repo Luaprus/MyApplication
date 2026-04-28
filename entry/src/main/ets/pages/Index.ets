@@ -1,4 +1,4 @@
-﻿import buffer from '@ohos.buffer';
+import buffer from '@ohos.buffer';
 import abilityAccessCtrl, { Permissions } from '@ohos.abilityAccessCtrl';
 import common from '@ohos.app.ability.common';
 import dataSharePredicates from '@ohos.data.dataSharePredicates';
@@ -16,60 +16,18 @@ import { buildWaterCardDisplayStateFromTotal } from '../models/WaterDisplay';
 import { mealSearchInputMessage, ProfileQuickTagAction, resolveProfileQuickTagAction } from '../models/InteractionActions';
 import { restorePersistedAuthToken, sanitizeSessionForPersistence } from '../models/AuthSessionPersistence';
 import { AchievementSummary, buildAchievementSummary, buildGoalAdjustment, buildHealthDataCsv, buildMonthCalendarDayKeys, buildSmartReminders, buildTrendDaySummaries, calculateWeekLoss, deleteFavoriteFood, firstWeightForDay, GoalAdjustment, latestWeightForDay, SmartReminder, TrendDaySummary, updateFavoriteFood, upsertWeightRecordKeepingBaseline } from '../models/FeatureInsights';
+import { DrinkPresetItem, ExerciseCategoryItem, ExercisePresetItem, MealActionItem, MealPresetItem, ProfilePanelType, WeeklyWeightPoint } from '../models/IndexModels';
+import { AI_SUGGESTIONS, EXERCISE_CATEGORIES, EXERCISE_PRESETS, MEAL_ACTIONS, MEAL_PRESETS, PROFILE_MENU_ITEMS, WATER_PRESETS, createDefaultMessages } from '../models/IndexSeedData';
+import { healthLightColor, healthLightLabel, mealBgColor, mealDisplayName, mealLabel, mealTint } from '../models/MealDisplay';
+import { exerciseCategoryIcon, mealActionIcon, mealTypeIcon, profileMenuIcon, profilePanelIcon, profileQuickTagIcon, profileStatIcon, waterPresetIcon } from '../models/IconResolvers';
+import { currentDayKey as currentDateKey, currentWeekDayKeys as weekDayKeys, dateFromDayKey as dateFromKey, dayKeyFromOffset as dayKeyWithOffset, formatClock as currentClockText, monthTitleFromDayKey as monthTitleFromKey } from '../models/DateTimeUtils';
+import { clampUnitProgress, clampWeightKg as clampPlanWeightKg, displayWeightDraft as formatWeightDraft, parseWeightPlanWeeklyTarget, progressWidth as formatProgressWidth, weightDraftToKg as parseWeightDraftToKg, weightPlanStartWeight as getWeightPlanStartWeight, weightPlanTargetWeight as getWeightPlanTargetWeight, weightPlanValueLabel as getWeightPlanValueLabel, weightPlanValueText as getWeightPlanValueText, weightPlanWeekNumber as getWeightPlanWeekNumber } from '../models/WeightPlan';
+import { exerciseAdjustedCalories as getExerciseAdjustedCalories, exerciseBarHeights as getExerciseBarHeights, exerciseCaloriesForDuration, exerciseDailyAverage as getExerciseDailyAverage, exerciseDurationValue, exerciseGoalDaysThisWeek as getExerciseGoalDaysThisWeek, exerciseOptionsForCategory, exerciseRecordsForDay, exerciseWeekCalories as getExerciseWeekCalories, exerciseWeekLabels as getExerciseWeekLabels, selectedExerciseCalories } from '../models/ExerciseInsights';
+import { favoriteFoodRowKey as buildFavoriteFoodRowKey, favoriteFoodRows as buildFavoriteFoodRows, mealPresetRowKey as buildMealPresetRowKey, mealPresetRows as buildMealPresetRows } from '../models/CollectionRows';
 import { AuthModule, OnboardingModule } from './modules/AuthModule';
 import { RecordModule } from './modules/RecordModule';
 import { AiModule } from './modules/AiModule';
 import { ProfileModule } from './modules/ProfileModule';
-
-interface MealActionItem {
-  id: number;
-  type: MealType | 'exercise';
-  label: string;
-  glyph: string;
-  tint: string;
-  bgColor: string;
-}
-
-interface MealPresetItem {
-  id: number;
-  mealType: MealType;
-  name: string;
-  calories: number;
-  subtitle: string;
-}
-
-interface ExerciseCategoryItem {
-  id: number;
-  label: string;
-  tint: string;
-  bgColor: string;
-  glyph: string;
-}
-
-interface ExercisePresetItem {
-  id: number;
-  category: string;
-  name: string;
-  calories: number;
-  duration: number;
-  glyph: string;
-  bgColor: string;
-}
-
-interface DrinkPresetItem {
-  id: number;
-  label: string;
-  glyph: string;
-  tint: string;
-  bgColor: string;
-}
-
-type ProfilePanelType = 'none' | 'settings' | 'weekly' | 'goal' | 'security' | 'feedback' | 'benefits';
-
-interface WeeklyWeightPoint {
-  label: string;
-  value: number;
-}
 
 @Entry
 @Component
@@ -245,134 +203,15 @@ struct Index {
   @State exerciseRecords: ExerciseRecordItem[] = [];
   @State waterRecords: WaterRecordItem[] = [];
   @State weightRecords: WeightRecordItem[] = [];
-  @State messages: ChatMessage[] = [
-    {
-      id: 1,
-      role: 'assistant',
-      content: '\u55e8\uff0c\u6211\u662f\u4f60\u7684 AI \u5065\u5eb7\u52a9\u624b\u3002\u4f60\u53ef\u4ee5\u95ee\u6211\u996e\u98df\u3001\u4f53\u91cd\u6ce2\u52a8\u548c\u8fd0\u52a8\u5b89\u6392\uff0c\u6211\u4f1a\u7ed3\u5408\u5f53\u524d\u8bb0\u5f55\u7ed9\u4f60\u5efa\u8bae\u3002'
-    }
-  ];
+  @State messages: ChatMessage[] = createDefaultMessages();
 
-  private suggestions: SuggestionItem[] = [
-    { id: 1, label: '\u751f\u6210\u672c\u5468AI\u5468\u62a5', tint: '#4B8DFF', bgColor: '#EEF4FF' },
-    { id: 2, label: '\u4eca\u5929\u8fd8\u80fd\u5403\u591a\u5c11\uff1f', tint: '#36C79A', bgColor: '#ECFBF5' },
-    { id: 3, label: '\u660e\u5929\u8fd0\u52a8\u600e\u4e48\u5b89\u6392\uff1f', tint: '#FF9D4D', bgColor: '#FFF4EA' }
-  ];
-
-  private profileMenuItems: ProfileMenuItem[] = [
-    {
-      id: 1,
-      title: '\u5468\u62a5\u5206\u6790',
-      subtitle: '\u56de\u770b\u4f60\u7684\u996e\u98df\u3001\u4f53\u91cd\u548c\u8fd0\u52a8\u8d8b\u52bf',
-      glyph: '\u5468',
-      tint: '#4B8DFF',
-      bgColor: '#EEF4FF',
-      badge: 'NEW'
-    },
-    {
-      id: 2,
-      title: '\u6211\u7684\u76ee\u6807',
-      subtitle: '\u76ee\u524d\u76ee\u6807\uff1a\u6bcf\u5468\u7a33\u5b9a\u51cf\u91cd 0.3kg',
-      glyph: '\u9776',
-      tint: '#FF9D4D',
-      bgColor: '#FFF7EE',
-      badge: ''
-    },
-    {
-      id: 3,
-      title: '\u8d26\u53f7\u5b89\u5168',
-      subtitle: '\u7ba1\u7406\u767b\u5f55\u65b9\u5f0f\u4e0e\u9690\u79c1\u8bbe\u7f6e',
-      glyph: '\u5b89',
-      tint: '#36C79A',
-      bgColor: '#ECFBF5',
-      badge: ''
-    },
-    {
-      id: 4,
-      title: '\u5e2e\u52a9\u4e0e\u53cd\u9988',
-      subtitle: '\u628a\u4f60\u60f3\u8981\u7684\u529f\u80fd\u544a\u8bc9\u6211\u4eec',
-      glyph: '\u95ee',
-      tint: '#94A3B8',
-      bgColor: '#F8FAFC',
-      badge: ''
-    }
-  ];
-
-  private mealActions: MealActionItem[] = [
-    { id: 1, type: 'breakfast', label: '\u65e9\u9910', glyph: '\u65e9', tint: '#FF9D4D', bgColor: '#FFF7EE' },
-    { id: 2, type: 'lunch', label: '\u5348\u9910', glyph: '\u5348', tint: '#4B8DFF', bgColor: '#EEF4FF' },
-    { id: 3, type: 'dinner', label: '\u665a\u9910', glyph: '\u665a', tint: '#8B5CF6', bgColor: '#F4EEFF' },
-    { id: 4, type: 'snack', label: '\u52a0\u9910', glyph: '\u52a0', tint: '#F97316', bgColor: '#FFF3EA' },
-    { id: 5, type: 'exercise', label: '\u8fd0\u52a8', glyph: '\u52a8', tint: '#36C79A', bgColor: '#ECFBF5' }
-  ];
-
-  private mealPresets: MealPresetItem[] = [
-    { id: 1, mealType: 'breakfast', name: '\u6c34\u716e\u86cb', calories: 78, subtitle: '\u9ad8\u86cb\u767d' },
-    { id: 2, mealType: 'breakfast', name: '\u5168\u9ea6\u5410\u53f8', calories: 92, subtitle: '\u6162\u78b3\u6c34' },
-    { id: 3, mealType: 'breakfast', name: '\u65e0\u7cd6\u8c46\u6d46', calories: 88, subtitle: '\u6e29\u548c\u9965\u8179' },
-    { id: 4, mealType: 'breakfast', name: '\u5e0c\u814a\u9178\u5976', calories: 105, subtitle: '\u8f7b\u76c8\u642d\u914d' },
-    { id: 5, mealType: 'lunch', name: '\u7cd9\u7c73\u996d', calories: 116, subtitle: '\u4e3b\u98df' },
-    { id: 6, mealType: 'lunch', name: '\u9999\u714e\u9e21\u80f8', calories: 168, subtitle: '\u4f18\u8d28\u86cb\u767d' },
-    { id: 7, mealType: 'lunch', name: '\u6e05\u7092\u897f\u5170\u82b1', calories: 84, subtitle: '\u8535\u83dc' },
-    { id: 8, mealType: 'lunch', name: '\u725b\u6cb9\u83dc\u6c99\u62c9', calories: 132, subtitle: '\u8f7b\u98df' },
-    { id: 9, mealType: 'dinner', name: '\u5357\u74dc\u6d53\u6c64', calories: 96, subtitle: '\u6696\u80c3' },
-    { id: 10, mealType: 'dinner', name: '\u9999\u714e\u867e\u4ec1', calories: 124, subtitle: '\u9ad8\u86cb\u767d' },
-    { id: 11, mealType: 'dinner', name: '\u84b8\u7d2b\u85af', calories: 112, subtitle: '\u4f4e\u8d1f\u62c5' },
-    { id: 12, mealType: 'dinner', name: '\u51c9\u62cc\u9ec4\u74dc', calories: 42, subtitle: '\u6e05\u723d' },
-    { id: 13, mealType: 'snack', name: '\u84dd\u8393', calories: 45, subtitle: '\u6c34\u679c' },
-    { id: 14, mealType: 'snack', name: '\u575a\u679c\u5c0f\u628a', calories: 96, subtitle: '\u63a7\u91cf' },
-    { id: 15, mealType: 'snack', name: '\u9ad8\u86cb\u767d\u5976', calories: 118, subtitle: '\u8865\u80fd\u91cf' }
-  ];
-
-  private exerciseCategories: ExerciseCategoryItem[] = [
-    { id: 1, label: '\u70ed\u95e8', tint: '#36C79A', bgColor: '#ECFBF5', glyph: '\u70ed' },
-    { id: 2, label: '\u6b65\u884c', tint: '#4B8DFF', bgColor: '#EEF4FF', glyph: '\u6b65' },
-    { id: 3, label: '\u8dd1\u6b65', tint: '#F97316', bgColor: '#FFF3EA', glyph: '\u8dd1' },
-    { id: 4, label: '\u9a91\u884c', tint: '#8B5CF6', bgColor: '#F4EEFF', glyph: '\u9a91' },
-    { id: 5, label: '\u7403\u7c7b', tint: '#F59E0B', bgColor: '#FFF7E8', glyph: '\u7403' },
-    { id: 6, label: '\u5065\u8eab', tint: '#0EA5E9', bgColor: '#E8F7FF', glyph: '\u529b' },
-    { id: 7, label: '\u62c9\u4f38', tint: '#14B8A6', bgColor: '#E8FCF8', glyph: '\u4f38' }
-  ];
-
-  private exercisePresets: ExercisePresetItem[] = [
-    { id: 1, category: '\u70ed\u95e8', name: '\u8dd1\u6b65\u673a\u722c\u5761', calories: 673, duration: 60, glyph: '\u5761', bgColor: '#FFF3EA' },
-    { id: 2, category: '\u70ed\u95e8', name: '\u5feb\u8d70', calories: 250, duration: 45, glyph: '\u8d70', bgColor: '#EEF4FF' },
-    { id: 3, category: '\u70ed\u95e8', name: '\u8df3\u7ef3', calories: 648, duration: 60, glyph: '\u7ef3', bgColor: '#FFF7E8' },
-    { id: 4, category: '\u70ed\u95e8', name: '\u6668\u8d77\u62c9\u4f38', calories: 120, duration: 30, glyph: '\u4f38', bgColor: '#E8FCF8' },
-    { id: 5, category: '\u6b65\u884c', name: '\u901a\u52e4\u6563\u6b65', calories: 180, duration: 35, glyph: '\u6b65', bgColor: '#EEF4FF' },
-    { id: 6, category: '\u6b65\u884c', name: '\u6237\u5916\u5feb\u8d70', calories: 291, duration: 60, glyph: '\u901f', bgColor: '#EEF4FF' },
-    { id: 7, category: '\u8dd1\u6b65', name: '\u6237\u5916\u6162\u8dd1', calories: 415, duration: 50, glyph: '\u8dd1', bgColor: '#FFF3EA' },
-    { id: 8, category: '\u8dd1\u6b65', name: 'HIIT \u95f4\u6b47\u8dd1', calories: 540, duration: 40, glyph: 'HI', bgColor: '#FFF3EA' },
-    { id: 9, category: '\u9a91\u884c', name: '\u5ba4\u5185\u5355\u8f66', calories: 388, duration: 45, glyph: '\u9a91', bgColor: '#F4EEFF' },
-    { id: 10, category: '\u9a91\u884c', name: '\u901a\u52e4\u9a91\u884c', calories: 320, duration: 40, glyph: '\u8f66', bgColor: '#F4EEFF' },
-    { id: 11, category: '\u7403\u7c7b', name: '\u7fbd\u6bdb\u7403', calories: 430, duration: 60, glyph: '\u7fbd', bgColor: '#FFF7E8' },
-    { id: 12, category: '\u7403\u7c7b', name: '\u7bee\u7403', calories: 468, duration: 60, glyph: '\u7bee', bgColor: '#FFF7E8' },
-    { id: 13, category: '\u5065\u8eab', name: '\u81ea\u91cd\u5faa\u73af\u8bad\u7ec3', calories: 352, duration: 45, glyph: '\u529b', bgColor: '#E8F7FF' },
-    { id: 14, category: '\u5065\u8eab', name: '\u54d1\u94c3\u8bad\u7ec3', calories: 300, duration: 50, glyph: '\u94c3', bgColor: '#E8F7FF' },
-    { id: 15, category: '\u62c9\u4f38', name: '\u7761\u524d\u745c\u4f3d', calories: 145, duration: 35, glyph: '\u745c', bgColor: '#E8FCF8' },
-    { id: 16, category: '\u62c9\u4f38', name: '\u808c\u8089\u653e\u677e', calories: 96, duration: 25, glyph: '\u677e', bgColor: '#E8FCF8' }
-  ];
-
-  private waterPresets: DrinkPresetItem[] = [
-    { id: 1, label: '\u6c34', glyph: '\u6c34', tint: '#32C5F4', bgColor: '#E9F9FF' },
-    { id: 2, label: '\u8336\u6c34', glyph: '\u8336', tint: '#F59E0B', bgColor: '#FFF7E8' },
-    { id: 3, label: '\u82cf\u6253\u6c34', glyph: '\u6c14', tint: '#60A5FA', bgColor: '#EEF4FF' },
-    { id: 4, label: '\u5496\u5561', glyph: '\u5496', tint: '#8B5E3C', bgColor: '#F8F2EC' },
-    { id: 5, label: '\u6930\u5976', glyph: '\u6930', tint: '#F59E0B', bgColor: '#FFF7EE' },
-    { id: 6, label: '\u67e0\u6aac\u6c34', glyph: '\u67e0', tint: '#FACC15', bgColor: '#FFFCE8' },
-    { id: 7, label: '\u82f9\u679c\u918b', glyph: '\u918b', tint: '#FB7185', bgColor: '#FFF1F2' },
-    { id: 8, label: '\u7ea2\u7cd6\u6c34', glyph: '\u7cd6', tint: '#EF4444', bgColor: '#FEF2F2' },
-    { id: 9, label: '\u8c46\u6d46', glyph: '\u8c46', tint: '#F59E0B', bgColor: '#FFF7EE' },
-    { id: 10, label: '\u7ca5', glyph: '\u7ca5', tint: '#94A3B8', bgColor: '#F8FAFC' },
-    { id: 11, label: '\u8c46\u5976', glyph: '\u5976', tint: '#F59E0B', bgColor: '#FFF7EE' },
-    { id: 12, label: '\u53ef\u4e50', glyph: '\u4e50', tint: '#F43F5E', bgColor: '#FFF1F2' },
-    { id: 13, label: '\u725b\u5976', glyph: '\u725b', tint: '#06B6D4', bgColor: '#ECFEFF' },
-    { id: 14, label: '\u679c\u6c41', glyph: '\u679c', tint: '#FB923C', bgColor: '#FFF7ED' },
-    { id: 15, label: '\u9178\u6885\u6c64', glyph: '\u6885', tint: '#E11D48', bgColor: '#FFF1F2' },
-    { id: 16, label: '\u9178\u5976', glyph: '\u9178', tint: '#38BDF8', bgColor: '#F0F9FF' },
-    { id: 17, label: '\u5976\u8336', glyph: '\u5976', tint: '#F59E0B', bgColor: '#FFF7EE' },
-    { id: 18, label: '\u517b\u4e50\u591a', glyph: '\u517b', tint: '#FB7185', bgColor: '#FFF1F2' }
-  ];
+  private suggestions: SuggestionItem[] = AI_SUGGESTIONS;
+  private profileMenuItems: ProfileMenuItem[] = PROFILE_MENU_ITEMS;
+  private mealActions: MealActionItem[] = MEAL_ACTIONS;
+  private mealPresets: MealPresetItem[] = MEAL_PRESETS;
+  private exerciseCategories: ExerciseCategoryItem[] = EXERCISE_CATEGORIES;
+  private exercisePresets: ExercisePresetItem[] = EXERCISE_PRESETS;
+  private waterPresets: DrinkPresetItem[] = WATER_PRESETS;
 
   build() {
     Stack({ alignContent: Alignment.Bottom }) {
@@ -1637,8 +1476,8 @@ struct Index {
   foodAction(item: MealActionItem) {
     Column({ space: 8 }) {
       Button() {
-        if (this.mealActionIcon(item.id) !== undefined) {
-          Image(this.mealActionIcon(item.id))
+        if (mealActionIcon(item.id) !== undefined) {
+          Image(mealActionIcon(item.id))
             .width(26)
             .height(26)
             .objectFit(ImageFit.Contain)
@@ -2548,8 +2387,8 @@ struct Index {
       }
 
       Column({ space: 6 }) {
-        if (this.exerciseCategoryIcon(item.label) !== undefined) {
-          Image(this.exerciseCategoryIcon(item.label))
+        if (exerciseCategoryIcon(item.label) !== undefined) {
+          Image(exerciseCategoryIcon(item.label))
             .width(22)
             .height(22)
             .objectFit(ImageFit.Contain)
@@ -2582,8 +2421,8 @@ struct Index {
   exerciseOptionRow(item: ExercisePresetItem) {
     Row({ space: 12 }) {
       Row() {
-        if (this.exerciseCategoryIcon(item.category) !== undefined) {
-          Image(this.exerciseCategoryIcon(item.category))
+        if (exerciseCategoryIcon(item.category) !== undefined) {
+          Image(exerciseCategoryIcon(item.category))
             .width(30)
             .height(30)
             .objectFit(ImageFit.Contain)
@@ -3211,8 +3050,7 @@ struct Index {
   }
 
   trendCalendarTitle(): string {
-    let date: Date = this.dateFromDayKey(this.trendSelectedDayKey());
-    return `${date.getFullYear()} \u5e74 ${date.getMonth() + 1} \u6708`;
+    return monthTitleFromKey(this.trendSelectedDayKey());
   }
 
   trendDayDetailText(dayKey: string): string {
@@ -3255,25 +3093,25 @@ struct Index {
     for (let index = 0; index < this.mealRecords.length; index++) {
       let item: MealRecordItem = this.mealRecords[index];
       if (item.dayKey === dayKey) {
-        lines.push(`${this.mealLabel(item.mealType)} · ${item.time} · ${item.name} ${item.calories}kcal`);
+        lines.push(`${mealLabel(item.mealType)} \u00b7 ${item.time} \u00b7 ${item.name} ${item.calories}kcal`);
       }
     }
     for (let index = 0; index < this.waterRecords.length; index++) {
       let item: WaterRecordItem = this.waterRecords[index];
       if (item.dayKey === dayKey) {
-        lines.push(`\u996e\u6c34 · ${item.time} · ${item.drinkName} ${item.amount}ml`);
+        lines.push(`\u996e\u6c34 鐠?${item.time} 鐠?${item.drinkName} ${item.amount}ml`);
       }
     }
     for (let index = 0; index < this.exerciseRecords.length; index++) {
       let item: ExerciseRecordItem = this.exerciseRecords[index];
       if (item.dayKey === dayKey) {
-        lines.push(`\u8fd0\u52a8 · ${item.time} · ${item.name} ${item.duration}\u5206\u949f ${item.calories}kcal`);
+        lines.push(`\u8fd0\u52a8 鐠?${item.time} 鐠?${item.name} ${item.duration}\u5206\u949f ${item.calories}kcal`);
       }
     }
     for (let index = 0; index < this.weightRecords.length; index++) {
       let item: WeightRecordItem = this.weightRecords[index];
       if (item.dayKey === dayKey) {
-        lines.push(`\u4f53\u91cd · ${item.time} · ${item.value.toFixed(2)}kg`);
+        lines.push(`\u4f53\u91cd 鐠?${item.time} 鐠?${item.value.toFixed(2)}kg`);
       }
     }
     return lines.slice(0, 8);
@@ -3460,168 +3298,13 @@ struct Index {
     return rows;
   }
 
-  waterPresetIcon(id: number) {
-    switch (id) {
-      case 1:
-        return $r('app.media.icon_drink_water');
-      case 2:
-        return $r('app.media.icon_drink_tea');
-      case 3:
-        return $r('app.media.icon_drink_soda');
-      case 4:
-        return $r('app.media.icon_drink_coffee');
-      case 5:
-        return $r('app.media.icon_drink_coconut');
-      case 6:
-        return $r('app.media.icon_drink_lemon');
-      case 7:
-        return $r('app.media.icon_drink_apple_cider');
-      case 8:
-        return $r('app.media.icon_drink_brown_sugar');
-      case 9:
-        return $r('app.media.icon_drink_soy_milk_cup');
-      case 10:
-        return $r('app.media.icon_drink_porridge');
-      case 11:
-        return $r('app.media.icon_drink_soy_milk_bottle');
-      case 12:
-        return $r('app.media.icon_drink_cola');
-      case 13:
-        return $r('app.media.icon_drink_milk');
-      case 14:
-        return $r('app.media.icon_drink_juice');
-      case 15:
-        return $r('app.media.icon_drink_sour_plum');
-      case 16:
-        return $r('app.media.icon_drink_yogurt');
-      case 17:
-        return $r('app.media.icon_drink_milk_tea');
-      case 18:
-        return $r('app.media.icon_drink_yakult');
-      default:
-        return undefined;
-    }
-  }
-
-  profileStatIcon(glyph: string) {
-    switch (glyph) {
-      case '\u62a5':
-        return $r('app.media.icon_profile_report');
-      case '\u793c':
-        return $r('app.media.icon_profile_benefits');
-      default:
-        return undefined;
-    }
-  }
-
-  profileQuickTagIcon(title: string) {
-    switch (title) {
-      case '\u76ee\u6807':
-        return $r('app.media.icon_profile_goal');
-      case '\u6b65\u6570':
-        return $r('app.media.icon_exercise_walk');
-      case '\u4eca\u65e5\u996e\u98df':
-        return $r('app.media.icon_food_bowl');
-      case '\u8fd0\u52a8\u6d88\u8017':
-        return $r('app.media.icon_exercise_hot');
-      default:
-        return undefined;
-    }
-  }
-
-  profilePanelIcon(panel: ProfilePanelType) {
-    switch (panel) {
-      case 'settings':
-        return $r('app.media.icon_ai_spark');
-      case 'weekly':
-        return $r('app.media.icon_profile_report');
-      case 'goal':
-        return $r('app.media.icon_profile_goal');
-      case 'security':
-        return $r('app.media.icon_profile_security');
-      case 'feedback':
-        return $r('app.media.icon_profile_feedback');
-      case 'benefits':
-        return $r('app.media.icon_profile_benefits');
-      default:
-        return $r('app.media.icon_ai_spark');
-    }
-  }
-
-  profileMenuIcon(id: number) {
-    switch (id) {
-      case 1:
-        return $r('app.media.icon_profile_report');
-      case 2:
-        return $r('app.media.icon_profile_goal');
-      case 3:
-        return $r('app.media.icon_profile_security');
-      case 4:
-        return $r('app.media.icon_profile_feedback');
-      default:
-        return undefined;
-    }
-  }
-
-  mealActionIcon(id: number) {
-    switch (id) {
-      case 1:
-        return $r('app.media.icon_meal_breakfast');
-      case 2:
-        return $r('app.media.icon_meal_lunch');
-      case 3:
-        return $r('app.media.icon_meal_dinner');
-      case 4:
-        return $r('app.media.icon_meal_snack');
-      case 5:
-        return $r('app.media.icon_meal_exercise');
-      default:
-        return undefined;
-    }
-  }
-
-  exerciseCategoryIcon(label: string) {
-    switch (label) {
-      case '\u70ed\u95e8':
-        return $r('app.media.icon_exercise_hot');
-      case '\u6b65\u884c':
-        return $r('app.media.icon_exercise_walk');
-      case '\u8dd1\u6b65':
-        return $r('app.media.icon_exercise_run');
-      case '\u9a91\u884c':
-        return $r('app.media.icon_exercise_bike');
-      case '\u7403\u7c7b':
-        return $r('app.media.icon_exercise_ball');
-      case '\u5065\u8eab':
-        return $r('app.media.icon_exercise_strength');
-      case '\u62c9\u4f38':
-        return $r('app.media.icon_exercise_stretch');
-      default:
-        return undefined;
-    }
-  }
-
-  mealTypeIcon(type: MealType) {
-    switch (type) {
-      case 'breakfast':
-        return $r('app.media.icon_meal_breakfast');
-      case 'lunch':
-        return $r('app.media.icon_meal_lunch');
-      case 'dinner':
-        return $r('app.media.icon_meal_dinner');
-      case 'snack':
-        return $r('app.media.icon_meal_snack');
-      default:
-        return $r('app.media.icon_food_bowl');
-    }
-  }
 
   @Builder
   waterPresetCard(item: DrinkPresetItem) {
     Row({ space: 10 }) {
       Row() {
-        if (this.waterPresetIcon(item.id) !== undefined) {
-          Image(this.waterPresetIcon(item.id))
+        if (waterPresetIcon(item.id) !== undefined) {
+          Image(waterPresetIcon(item.id))
             .width(28)
             .height(28)
             .objectFit(ImageFit.Contain)
@@ -3762,20 +3445,20 @@ struct Index {
       Row() {
         Row({ space: 12 }) {
           Row() {
-            Image(this.mealTypeIcon(this.activeMealType))
+            Image(mealTypeIcon(this.activeMealType))
               .width(28)
               .height(28)
               .objectFit(ImageFit.Contain)
           }
           .width(46)
           .height(46)
-          .backgroundColor(this.mealBgColor(this.activeMealType))
+          .backgroundColor(mealBgColor(this.activeMealType))
           .borderRadius(16)
           .justifyContent(FlexAlign.Center)
           .alignItems(VerticalAlign.Center)
 
           Column({ space: 4 }) {
-            Text(this.mealDisplayName(this.activeMealType))
+            Text(mealDisplayName(this.activeMealType))
               .fontSize(20)
               .fontWeight(FontWeight.Bold)
               .fontColor('#0F172A')
@@ -3886,7 +3569,7 @@ struct Index {
                 Text(`${this.currentMealCaloriesValue()}`)
                   .fontSize(24)
                   .fontWeight(FontWeight.Bold)
-                  .fontColor(this.mealTint(this.activeMealType))
+                  .fontColor(mealTint(this.activeMealType))
 
                 Text('\u5343\u5361')
                   .fontSize(12)
@@ -3895,7 +3578,7 @@ struct Index {
             }
             .layoutWeight(1)
             .padding(16)
-            .backgroundColor(this.mealBgColor(this.activeMealType))
+            .backgroundColor(mealBgColor(this.activeMealType))
             .borderRadius(18)
             .alignItems(HorizontalAlign.Start)
 
@@ -4157,7 +3840,7 @@ struct Index {
             .layoutWeight(1)
 
           Row() {
-            this.plusGlyph(this.mealTint(item.mealType), 14, 2)
+            this.plusGlyph(mealTint(item.mealType), 14, 2)
           }
             .width(28)
             .height(28)
@@ -4176,14 +3859,14 @@ struct Index {
         Text(`${item.calories} \u5343\u5361`)
           .fontSize(13)
           .fontWeight(FontWeight.Bold)
-          .fontColor(this.mealTint(item.mealType))
+          .fontColor(mealTint(item.mealType))
       }
       .padding(14)
       .width('100%')
       .alignItems(HorizontalAlign.Start)
     }
     .layoutWeight(1)
-    .backgroundColor(this.mealBgColor(item.mealType))
+    .backgroundColor(mealBgColor(item.mealType))
     .borderRadius(18)
     .padding(0)
     .onClick(() => {
@@ -4216,7 +3899,7 @@ struct Index {
       Text(`${item.calories} \u5343\u5361`)
         .fontSize(13)
         .fontWeight(FontWeight.Bold)
-        .fontColor(this.mealTint(this.activeMealType))
+        .fontColor(mealTint(this.activeMealType))
 
       Text(item.source)
         .fontSize(11)
@@ -4351,12 +4034,12 @@ struct Index {
             .fontColor('#0F172A')
             .maxLines(1)
 
-          Text(this.healthLightLabel(item.healthLight))
+          Text(healthLightLabel(item.healthLight))
             .fontSize(10)
             .fontWeight(FontWeight.Bold)
             .fontColor('#FFFFFF')
             .padding({ left: 6, right: 6, top: 3, bottom: 3 })
-            .backgroundColor(this.healthLightColor(item.healthLight))
+            .backgroundColor(healthLightColor(item.healthLight))
             .borderRadius(10)
         }
 
@@ -4369,7 +4052,7 @@ struct Index {
 
       Column({ space: 6 }) {
         Row() {
-          this.plusGlyph(this.mealTint(this.activeMealType), 14, 2)
+          this.plusGlyph(mealTint(this.activeMealType), 14, 2)
         }
           .width(30)
           .height(30)
@@ -4420,7 +4103,7 @@ struct Index {
       Text(`${item.calories} \u5343\u5361`)
         .fontSize(13)
         .fontWeight(FontWeight.Bold)
-        .fontColor(this.mealTint(item.mealType))
+        .fontColor(mealTint(item.mealType))
 
       Button('\u5220\u9664')
         .height(34)
@@ -4555,91 +4238,39 @@ struct Index {
     if (weeklyTarget <= 0) {
       return 0;
     }
-    return this.clamp(this.weekLoss / weeklyTarget);
+    return clampUnitProgress(this.weekLoss / weeklyTarget);
   }
 
   clamp(value: number): number {
-    if (value < 0) {
-      return 0;
-    }
-    if (value > 1) {
-      return 1;
-    }
-    return value;
+    return clampUnitProgress(value);
   }
 
   progressWidth(value: number): string {
-    let percentage: number = Math.round(this.clamp(value) * 100);
-    if (percentage > 0 && percentage < 8) {
-      percentage = 8;
-    }
-    return `${percentage}%`;
+    return formatProgressWidth(value);
   }
 
   weightPlanWeeklyTarget(): number {
-    let profileTarget: number = Number(this.profileWeeklyTargetDraft.trim());
-    if (!Number.isNaN(profileTarget) && profileTarget > 0) {
-      return Number(profileTarget.toFixed(2));
-    }
-    let onboardingTarget: number = Number(this.onboardingWeeklyTarget.trim());
-    if (!Number.isNaN(onboardingTarget) && onboardingTarget > 0) {
-      return Number(onboardingTarget.toFixed(2));
-    }
-    return 0.3;
+    return parseWeightPlanWeeklyTarget(this.profileWeeklyTargetDraft, this.onboardingWeeklyTarget);
   }
 
   weightPlanTargetWeight(): number {
-    let parsedTarget: number = Number(this.onboardingTargetWeight.trim());
-    if (!Number.isNaN(parsedTarget) && parsedTarget > 0) {
-      return this.clampWeightKg(parsedTarget);
-    }
-    return this.clampWeightKg(Math.max(this.weight - 1, 30));
+    return getWeightPlanTargetWeight(this.onboardingTargetWeight, this.weight);
   }
 
   weightPlanStartWeight(): number {
-    if (this.weightRecords.length === 0) {
-      return this.weight;
-    }
-
-    let oldestRecord: WeightRecordItem = this.weightRecords[0];
-    for (let index = 1; index < this.weightRecords.length; index++) {
-      if (this.weightRecords[index].dayKey < oldestRecord.dayKey) {
-        oldestRecord = this.weightRecords[index];
-      }
-    }
-    return oldestRecord.value;
+    return getWeightPlanStartWeight(this.weightRecords, this.weight);
   }
 
   weightPlanWeekNumber(): number {
-    if (this.weightRecords.length === 0) {
-      return 1;
-    }
-
-    let earliestDayKey: string = this.weightRecords[0].dayKey;
-    for (let index = 1; index < this.weightRecords.length; index++) {
-      if (this.weightRecords[index].dayKey < earliestDayKey) {
-        earliestDayKey = this.weightRecords[index].dayKey;
-      }
-    }
-
-    let firstDate: Date = this.dateFromDayKey(earliestDayKey);
-    let today: Date = this.dateFromDayKey(this.currentDayKey());
-    let distance: number = Math.max(0, today.getTime() - firstDate.getTime());
-    return Math.floor(distance / 604800000) + 1;
+    return getWeightPlanWeekNumber(this.weightRecords, this.currentDayKey());
   }
 
   weightPlanValueText(): string {
-    if (this.weekLoss < 0) {
-      return `+${Math.abs(this.weekLoss).toFixed(2)}`;
-    }
-    return this.weekLoss.toFixed(2);
+    return getWeightPlanValueText(this.weekLoss);
   }
 
   weightPlanValueLabel(): string {
-    if (this.weekLoss < 0) {
-      return '\u672c\u5468\u53d8\u5316\uff08\u516c\u65a4\uff09';
-    }
-    return '\u672c\u5468\u51cf\u91cd\uff08\u516c\u65a4\uff09';
+    return getWeightPlanValueLabel(this.weekLoss);
   }
 
   drawWeightArc(): void {
@@ -4838,8 +4469,8 @@ struct Index {
   profileStatCard(title: string, value: string, unit: string, tint: string, bgColor: string, glyph: string, action: () => void) {
     Column({ space: 16 }) {
       Row() {
-        if (this.profileStatIcon(glyph) !== undefined) {
-          Image(this.profileStatIcon(glyph))
+        if (profileStatIcon(glyph) !== undefined) {
+          Image(profileStatIcon(glyph))
             .width(24)
             .height(24)
             .objectFit(ImageFit.Contain)
@@ -4891,8 +4522,8 @@ struct Index {
   profileQuickTag(title: string, value: string, bgColor: string, tint: string) {
     Row({ space: 10 }) {
       Row() {
-        if (this.profileQuickTagIcon(title) !== undefined) {
-          Image(this.profileQuickTagIcon(title))
+        if (profileQuickTagIcon(title) !== undefined) {
+          Image(profileQuickTagIcon(title))
             .width(22)
             .height(22)
             .objectFit(ImageFit.Contain)
@@ -4934,7 +4565,7 @@ struct Index {
     Column() {
       Row() {
         Row() {
-          Image(this.profilePanelIcon(this.activeProfilePanel))
+          Image(profilePanelIcon(this.activeProfilePanel))
             .width(24)
             .height(24)
             .objectFit(ImageFit.Contain)
@@ -5414,8 +5045,8 @@ struct Index {
   profileMenuRow(item: ProfileMenuItem) {
     Row({ space: 14 }) {
       Row() {
-        if (this.profileMenuIcon(item.id) !== undefined) {
-          Image(this.profileMenuIcon(item.id))
+        if (profileMenuIcon(item.id) !== undefined) {
+          Image(profileMenuIcon(item.id))
             .width(24)
             .height(24)
             .objectFit(ImageFit.Contain)
@@ -5579,31 +5210,15 @@ struct Index {
   }
 
   displayWeightDraft(weightKg: number): string {
-    if (this.weightDraftUnit === 'jin') {
-      return (weightKg * 2).toFixed(2);
-    }
-    return weightKg.toFixed(2);
+    return formatWeightDraft(weightKg, this.weightDraftUnit);
   }
 
   weightDraftToKg(): number {
-    let parsed: number = Number(this.weightDraft);
-    if (Number.isNaN(parsed) || parsed <= 0) {
-      return this.weight;
-    }
-    if (this.weightDraftUnit === 'jin') {
-      return parsed / 2;
-    }
-    return parsed;
+    return parseWeightDraftToKg(this.weightDraft, this.weightDraftUnit, this.weight);
   }
 
   clampWeightKg(weightKg: number): number {
-    if (weightKg < 30) {
-      return 30;
-    }
-    if (weightKg > 150) {
-      return 150;
-    }
-    return Number(weightKg.toFixed(2));
+    return clampPlanWeightKg(weightKg);
   }
 
   saveWeightInput(): void {
@@ -5729,13 +5344,9 @@ struct Index {
   clearAiConversation(): void {
     this.chatInput = '';
     this.askInput = '';
-    this.messages = [
-      {
-        id: Date.now(),
-        role: 'assistant',
-        content: '\u55e8\uff0c\u6211\u662f\u4f60\u7684 AI \u5065\u5eb7\u52a9\u624b\u3002\u4f60\u53ef\u4ee5\u95ee\u6211\u996e\u98df\u3001\u4f53\u91cd\u6ce2\u52a8\u548c\u8fd0\u52a8\u5b89\u6392\uff0c\u6211\u4f1a\u7ed3\u5408\u5f53\u524d\u8bb0\u5f55\u7ed9\u4f60\u5efa\u8bae\u3002'
-      }
-    ];
+    let defaultMessages: ChatMessage[] = createDefaultMessages();
+    defaultMessages[0].id = Date.now();
+    this.messages = defaultMessages;
     this.queuePersistAppState();
   }
 
@@ -6081,13 +5692,7 @@ struct Index {
     this.exerciseDurationDraft = '';
     this.askInput = '';
     this.chatInput = '';
-    this.messages = [
-      {
-        id: 1,
-        role: 'assistant',
-        content: '\u55e8\uff0c\u6211\u662f\u4f60\u7684 AI \u5065\u5eb7\u52a9\u624b\u3002\u4f60\u53ef\u4ee5\u95ee\u6211\u996e\u98df\u3001\u4f53\u91cd\u6ce2\u52a8\u548c\u8fd0\u52a8\u5b89\u6392\uff0c\u6211\u4f1a\u7ed3\u5408\u5f53\u524d\u8bb0\u5f55\u7ed9\u4f60\u5efa\u8bae\u3002'
-      }
-    ];
+    this.messages = createDefaultMessages();
     this.syncWaterIntake();
     this.recalculateWeightMetrics();
     this.drawWeightArc();
@@ -6618,29 +6223,11 @@ struct Index {
   }
 
   currentExerciseOptions(): ExercisePresetItem[] {
-    let options: ExercisePresetItem[] = [];
-    let keyword: string = this.exerciseSearchKeyword.trim().toLowerCase();
-    for (let index = 0; index < this.exercisePresets.length; index++) {
-      let item: ExercisePresetItem = this.exercisePresets[index];
-      let matchesCategory: boolean = item.category === this.activeExerciseCategory;
-      let matchesKeyword: boolean = keyword.length === 0 || item.name.toLowerCase().includes(keyword);
-      if (matchesCategory && matchesKeyword) {
-        options.push(item);
-      }
-    }
-    return options;
+    return exerciseOptionsForCategory(this.exercisePresets, this.activeExerciseCategory, this.exerciseSearchKeyword);
   }
 
   currentDayExerciseRecords(): ExerciseRecordItem[] {
-    let todayKey: string = this.currentDayKey();
-    let records: ExerciseRecordItem[] = [];
-    for (let index = 0; index < this.exerciseRecords.length; index++) {
-      let item: ExerciseRecordItem = this.exerciseRecords[index];
-      if (item.dayKey === todayKey) {
-        records.push(item);
-      }
-    }
-    return records;
+    return exerciseRecordsForDay(this.exerciseRecords, this.currentDayKey());
   }
 
   selectedExerciseSummary(): string {
@@ -6654,27 +6241,11 @@ struct Index {
   }
 
   selectedExerciseDurationValue(defaultDuration: number = 0): number {
-    if (this.exerciseDurationDraft.length > 0) {
-      let parsedValue: number = Number(this.exerciseDurationDraft);
-      if (!isNaN(parsedValue) && parsedValue > 0) {
-        return Math.round(parsedValue);
-      }
-    }
-    return defaultDuration;
+    return exerciseDurationValue(this.exerciseDurationDraft, defaultDuration);
   }
 
   selectedExerciseCaloriesValue(): number {
-    for (let index = 0; index < this.exercisePresets.length; index++) {
-      let item: ExercisePresetItem = this.exercisePresets[index];
-      if (item.id === this.selectedExerciseId) {
-        let duration: number = this.selectedExerciseDurationValue(item.duration);
-        if (item.duration <= 0) {
-          return item.calories;
-        }
-        return Math.max(1, Math.round((item.calories * duration) / item.duration));
-      }
-    }
-    return 0;
+    return selectedExerciseCalories(this.exercisePresets, this.selectedExerciseId, this.exerciseDurationDraft);
   }
 
   saveExerciseSelection(): void {
@@ -6688,7 +6259,7 @@ struct Index {
       let item: ExercisePresetItem = this.exercisePresets[index];
       if (item.id === this.selectedExerciseId) {
         let duration: number = this.selectedExerciseDurationValue(item.duration);
-        let calories: number = this.selectedExerciseCaloriesValue();
+        let calories: number = exerciseCaloriesForDuration(item, duration);
         let nextRecord: ExerciseRecordItem = {
           id: Date.now(),
           name: item.name,
@@ -6735,69 +6306,27 @@ struct Index {
   }
 
   exerciseGoalDaysThisWeek(): number {
-    let values: number[] = this.exerciseWeekCalories();
-    let count: number = 0;
-    for (let index = 0; index < values.length; index++) {
-      if (values[index] > 0) {
-        count += 1;
-      }
-    }
-    return count;
+    return getExerciseGoalDaysThisWeek(this.exerciseWeekCalories());
   }
 
   exerciseDailyAverage(): number {
-    let values: number[] = this.exerciseWeekCalories();
-    let total: number = 0;
-    for (let index = 0; index < values.length; index++) {
-      total += values[index];
-    }
-    if (total <= 0) {
-      return 0;
-    }
-    return Math.round(total / 7);
+    return getExerciseDailyAverage(this.exerciseWeekCalories());
   }
 
   exerciseBarHeights(): number[] {
-    let values: number[] = this.exerciseWeekCalories();
-    let maxValue: number = 0;
-    for (let index = 0; index < values.length; index++) {
-      if (values[index] > maxValue) {
-        maxValue = values[index];
-      }
-    }
-    if (maxValue <= 0) {
-      return [8, 8, 8, 8, 8, 8, 8];
-    }
-
-    let heights: number[] = [];
-    for (let index = 0; index < values.length; index++) {
-      let height: number = Math.round((values[index] / maxValue) * 64);
-      heights.push(Math.max(8, height));
-    }
-    return heights;
+    return getExerciseBarHeights(this.exerciseWeekCalories());
   }
 
   exerciseWeekLabels(): string[] {
-    return ['\u4e00', '\u4e8c', '\u4e09', '\u56db', '\u4e94', '\u516d', '\u65e5'];
+    return getExerciseWeekLabels();
   }
 
   exerciseWeekCalories(): number[] {
-    let keys: string[] = this.currentWeekDayKeys();
-    let values: number[] = [0, 0, 0, 0, 0, 0, 0];
-    for (let recordIndex = 0; recordIndex < this.exerciseRecords.length; recordIndex++) {
-      let record: ExerciseRecordItem = this.exerciseRecords[recordIndex];
-      for (let keyIndex = 0; keyIndex < keys.length; keyIndex++) {
-        if (record.dayKey === keys[keyIndex]) {
-          values[keyIndex] += record.calories;
-          break;
-        }
-      }
-    }
-    return values;
+    return getExerciseWeekCalories(this.exerciseRecords, this.currentWeekDayKeys());
   }
 
   exerciseAdjustedCalories(): number {
-    return Math.round(this.exerciseCaloriesBurned * 0.9);
+    return getExerciseAdjustedCalories(this.exerciseCaloriesBurned);
   }
 
   openMealSheet(type: MealType): void {
@@ -6836,83 +6365,6 @@ struct Index {
     this.queuePersistAppState();
   }
 
-  mealDisplayName(type: MealType): string {
-    if (type === 'breakfast') {
-      return '\u65e9\u9910\u8bb0\u5f55';
-    }
-    if (type === 'lunch') {
-      return '\u5348\u9910\u8bb0\u5f55';
-    }
-    if (type === 'dinner') {
-      return '\u665a\u9910\u8bb0\u5f55';
-    }
-    return '\u52a0\u9910\u8bb0\u5f55';
-  }
-
-  mealLabel(type: MealType): string {
-    if (type === 'breakfast') {
-      return '\u65e9\u9910';
-    }
-    if (type === 'lunch') {
-      return '\u5348\u9910';
-    }
-    if (type === 'dinner') {
-      return '\u665a\u9910';
-    }
-    return '\u52a0\u9910';
-  }
-
-  mealTint(type: MealType): string {
-    if (type === 'breakfast') {
-      return '#FF9D4D';
-    }
-    if (type === 'lunch') {
-      return '#4B8DFF';
-    }
-    if (type === 'dinner') {
-      return '#8B5CF6';
-    }
-    return '#F97316';
-  }
-
-  mealBgColor(type: MealType): string {
-    if (type === 'breakfast') {
-      return '#FFF7EE';
-    }
-    if (type === 'lunch') {
-      return '#EEF4FF';
-    }
-    if (type === 'dinner') {
-      return '#F4EEFF';
-    }
-    return '#FFF3EA';
-  }
-
-  healthLightLabel(value: number): string {
-    if (value === 1) {
-      return '\u7eff\u706f';
-    }
-    if (value === 2) {
-      return '\u9ec4\u706f';
-    }
-    if (value === 3) {
-      return '\u7ea2\u706f';
-    }
-    return '\u4e2d\u6027';
-  }
-
-  healthLightColor(value: number): string {
-    if (value === 1) {
-      return '#36C79A';
-    }
-    if (value === 2) {
-      return '#F59E0B';
-    }
-    if (value === 3) {
-      return '#EF4444';
-    }
-    return '#94A3B8';
-  }
 
   mealCalories(type: MealType): number {
     let total: number = 0;
@@ -6954,28 +6406,15 @@ struct Index {
   }
 
   currentMealPresetRows(): MealPresetItem[][] {
-    let presets: MealPresetItem[] = this.mealPresets.filter((item: MealPresetItem) => item.mealType === this.activeMealType);
-    let rows: MealPresetItem[][] = [];
-    for (let index = 0; index < presets.length; index += 2) {
-      rows.push(presets.slice(index, index + 2));
-    }
-    return rows;
+    return buildMealPresetRows(this.mealPresets, this.activeMealType);
   }
 
   favoriteFoodRows(): FavoriteFoodItem[][] {
-    let rows: FavoriteFoodItem[][] = [];
-    for (let index = 0; index < this.foodFavorites.length; index += 2) {
-      rows.push(this.foodFavorites.slice(index, index + 2));
-    }
-    return rows;
+    return buildFavoriteFoodRows(this.foodFavorites);
   }
 
   favoriteFoodRowKey(row: FavoriteFoodItem[]): string {
-    let ids: string[] = [];
-    row.forEach((item: FavoriteFoodItem) => {
-      ids.push(item.id.toString());
-    });
-    return ids.join('-');
+    return buildFavoriteFoodRowKey(row);
   }
 
   addFavoriteFood(name: string, calories: number, source: string): void {
@@ -7110,11 +6549,7 @@ struct Index {
   }
 
   mealPresetRowKey(row: MealPresetItem[]): string {
-    let ids: string[] = [];
-    row.forEach((item: MealPresetItem) => {
-      ids.push(item.id.toString());
-    });
-    return ids.join('-');
+    return buildMealPresetRowKey(row);
   }
 
   searchMealFoods(): void {
@@ -7195,7 +6630,7 @@ struct Index {
       dayKey: this.currentDayKey()
     };
     this.appendMealRecord(nextRecord);
-    this.lastScannedAssignedMeal = `\u5df2\u6dfb\u52a0\u5230${this.mealLabel(type)}`;
+    this.lastScannedAssignedMeal = `\u5df2\u6dfb\u52a0\u5230${mealLabel(type)}`;
     this.queuePersistAppState();
   }
 
@@ -7279,57 +6714,23 @@ struct Index {
   }
 
   currentClock(): string {
-    let date: Date = new Date();
-    let hour: string = date.getHours().toString().padStart(2, '0');
-    let minute: string = date.getMinutes().toString().padStart(2, '0');
-    return `${hour}:${minute}`;
+    return currentClockText();
   }
 
   currentDayKey(): string {
-    let date: Date = new Date();
-    let year: string = date.getFullYear().toString();
-    let month: string = (date.getMonth() + 1).toString().padStart(2, '0');
-    let day: string = date.getDate().toString().padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    return currentDateKey();
   }
 
   dateFromDayKey(dayKey: string): Date {
-    let parts: string[] = dayKey.split('-');
-    if (parts.length !== 3) {
-      return new Date();
-    }
-    let year: number = Number(parts[0]);
-    let month: number = Number(parts[1]);
-    let day: number = Number(parts[2]);
-    return new Date(year, month - 1, day);
+    return dateFromKey(dayKey);
   }
 
   dayKeyFromOffset(offsetDays: number): string {
-    let date: Date = new Date();
-    date.setDate(date.getDate() + offsetDays);
-    let year: string = date.getFullYear().toString();
-    let month: string = (date.getMonth() + 1).toString().padStart(2, '0');
-    let day: string = date.getDate().toString().padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    return dayKeyWithOffset(offsetDays);
   }
 
   currentWeekDayKeys(): string[] {
-    let today: Date = new Date();
-    let currentDay: number = today.getDay();
-    let mondayOffset: number = currentDay === 0 ? -6 : 1 - currentDay;
-    let monday: Date = new Date(today.getTime());
-    monday.setDate(today.getDate() + mondayOffset);
-
-    let keys: string[] = [];
-    for (let index = 0; index < 7; index++) {
-      let day: Date = new Date(monday.getTime());
-      day.setDate(monday.getDate() + index);
-      let year: string = day.getFullYear().toString();
-      let month: string = (day.getMonth() + 1).toString().padStart(2, '0');
-      let dateValue: string = day.getDate().toString().padStart(2, '0');
-      keys.push(`${year}-${month}-${dateValue}`);
-    }
-    return keys;
+    return weekDayKeys();
   }
 
   stepDisplayText(): string {
