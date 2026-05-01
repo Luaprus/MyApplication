@@ -4,6 +4,7 @@ import interactionActionsTest from './InteractionActions.test';
 import authSessionPersistenceTest from './AuthSessionPersistence.test';
 import featureInsightsTest from './FeatureInsights.test';
 import recordInsightsTest from './RecordInsights.test';
+import aiSuggestionsTest from './AiSuggestions.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -12,4 +13,5 @@ export default function testsuite() {
   authSessionPersistenceTest();
   featureInsightsTest();
   recordInsightsTest();
+  aiSuggestionsTest();
 }

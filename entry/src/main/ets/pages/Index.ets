@@ -17,7 +17,7 @@ import { mealSearchInputMessage, ProfileQuickTagAction, resolveProfileQuickTagAc
 import { restorePersistedAuthToken, sanitizeSessionForPersistence } from '../models/AuthSessionPersistence';
 import { AchievementSummary, buildAchievementSummary, buildGoalAdjustment, buildHealthDataCsv, buildMonthCalendarDayKeys, buildSmartReminders, buildTrendDaySummaries, calculateWeekLoss, deleteFavoriteFood, firstWeightForDay, GoalAdjustment, latestWeightForDay, SmartReminder, TrendDaySummary, updateFavoriteFood, upsertWeightRecordKeepingBaseline } from '../models/FeatureInsights';
 import { DrinkPresetItem, ExerciseCategoryItem, ExercisePresetItem, MealActionItem, MealPresetItem, ProfilePanelType, WeeklyWeightPoint } from '../models/IndexModels';
-import { AI_SUGGESTIONS, EXERCISE_CATEGORIES, EXERCISE_PRESETS, MEAL_ACTIONS, MEAL_PRESETS, PROFILE_MENU_ITEMS, WATER_PRESETS, createDefaultMessages } from '../models/IndexSeedData';
+import { EXERCISE_CATEGORIES, EXERCISE_PRESETS, MEAL_ACTIONS, MEAL_PRESETS, PROFILE_MENU_ITEMS, WATER_PRESETS, createDefaultMessages } from '../models/IndexSeedData';
 import { healthLightColor, healthLightLabel, mealBgColor, mealDisplayName, mealLabel, mealTint } from '../models/MealDisplay';
 import { exerciseCategoryIcon, mealActionIcon, mealTypeIcon, profileMenuIcon, profilePanelIcon, profileQuickTagIcon, profileStatIcon, waterPresetIcon } from '../models/IconResolvers';
 import { currentDayKey as currentDateKey, currentWeekDayKeys as weekDayKeys, dateFromDayKey as dateFromKey, dayKeyFromOffset as dayKeyWithOffset, formatClock as currentClockText, monthTitleFromDayKey as monthTitleFromKey } from '../models/DateTimeUtils';
@@ -29,6 +29,7 @@ import { applyMealCaloriesDelta as calculateMealCaloriesDelta, currentMealCalori
 import { goalDisplayText as getGoalDisplayText, goalPlanPreview as getGoalPlanPreview, profileBenefitCount as getProfileBenefitCount, profileHealthScore as getProfileHealthScore, profileInitial as getProfileInitial, profileMenuSubtitle as getProfileMenuSubtitle, weeklyGoalValueText as getWeeklyGoalValueText, weeklyProgressSummary as getWeeklyProgressSummary, weeklySuggestionSummary as getWeeklySuggestionSummary, weightTrendSummary as getWeightTrendSummary } from '../models/ProfileInsights';
 import { countMealsForDay, countWaterRecordsForDay, dayRecordDetails as buildDayRecordDetails, trendDayDetailText as buildTrendDayDetailText, weightTextForDay as buildWeightTextForDay } from '../models/TrendDetails';
 import { buildDailyCompletionSummary, DailyCompletionItem, DailyCompletionSummary } from '../models/RecordInsights';
+import { buildAiSuggestions, WEEKLY_REPORT_LABEL } from '../models/AiSuggestions';
 import { AuthModule, OnboardingModule } from './modules/AuthModule';
 import { RecordModule } from './modules/RecordModule';
 import { AiModule } from './modules/AiModule';
@@ -210,7 +211,6 @@ struct Index {
   @State weightRecords: WeightRecordItem[] = [];
   @State messages: ChatMessage[] = createDefaultMessages();
 
-  private suggestions: SuggestionItem[] = AI_SUGGESTIONS;
   private profileMenuItems: ProfileMenuItem[] = PROFILE_MENU_ITEMS;
   private mealActions: MealActionItem[] = MEAL_ACTIONS;
   private mealPresets: MealPresetItem[] = MEAL_PRESETS;
@@ -302,7 +302,7 @@ struct Index {
                 chatInput: this.$chatInput,
                 isRequesting: this.isRequesting,
                 messages: this.messages,
-                suggestions: this.suggestions,
+                suggestions: this.aiSuggestions(),
                 onSuggestionSelect: (label: string) => {
                   this.sendSuggestedQuestion(label);
                 },
@@ -3092,6 +3092,17 @@ struct Index {
       this.exerciseCaloriesBurned, this.hasWeightRecordToday());
   }
 
+  aiSuggestions(): SuggestionItem[] {
+    return buildAiSuggestions({
+      water: this.water,
+      waterGoal: this.waterGoalMl(),
+      dinnerCalories: this.dinnerCalories,
+      exerciseCalories: this.exerciseCaloriesBurned,
+      daysSinceWeight: this.daysSinceLatestWeight(),
+      weekLoss: this.weekLoss
+    });
+  }
+
   hasWeightRecordToday(): boolean {
     return latestWeightForDay(this.weightRecords, this.currentDayKey()) > 0;
   }
@@ -5375,7 +5386,7 @@ struct Index {
     if (content.length === 0) {
       return;
     }
-    if (content === '\u751f\u6210\u672c\u5468AI\u5468\u62a5') {
+    if (content === WEEKLY_REPORT_LABEL) {
       this.openWeeklyReportInAi();
       return;
     }
