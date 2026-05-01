@@ -3,6 +3,7 @@ import waterDisplayTest from './WaterDisplay.test';
 import interactionActionsTest from './InteractionActions.test';
 import authSessionPersistenceTest from './AuthSessionPersistence.test';
 import featureInsightsTest from './FeatureInsights.test';
+import recordInsightsTest from './RecordInsights.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -10,4 +11,5 @@ export default function testsuite() {
   interactionActionsTest();
   authSessionPersistenceTest();
   featureInsightsTest();
+  recordInsightsTest();
 }

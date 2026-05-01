@@ -28,6 +28,7 @@ import { latestWaterRecord as getLatestWaterRecord, latestWaterRecordForDisplay 
 import { applyMealCaloriesDelta as calculateMealCaloriesDelta, currentMealCaloriesValue as getCurrentMealCaloriesValue, mealCaloriesForType, mealCalorieTotals, MealCalorieTotals, mealRecordsForType } from '../models/MealInsights';
 import { goalDisplayText as getGoalDisplayText, goalPlanPreview as getGoalPlanPreview, profileBenefitCount as getProfileBenefitCount, profileHealthScore as getProfileHealthScore, profileInitial as getProfileInitial, profileMenuSubtitle as getProfileMenuSubtitle, weeklyGoalValueText as getWeeklyGoalValueText, weeklyProgressSummary as getWeeklyProgressSummary, weeklySuggestionSummary as getWeeklySuggestionSummary, weightTrendSummary as getWeightTrendSummary } from '../models/ProfileInsights';
 import { countMealsForDay, countWaterRecordsForDay, dayRecordDetails as buildDayRecordDetails, trendDayDetailText as buildTrendDayDetailText, weightTextForDay as buildWeightTextForDay } from '../models/TrendDetails';
+import { buildDailyCompletionSummary, DailyCompletionItem, DailyCompletionSummary } from '../models/RecordInsights';
 import { AuthModule, OnboardingModule } from './modules/AuthModule';
 import { RecordModule } from './modules/RecordModule';
 import { AiModule } from './modules/AiModule';
@@ -1532,6 +1533,7 @@ struct Index {
   @Builder
   recordSection() {
     Column({ space: 16 }) {
+      this.dailyCompletionCard()
       this.smartReminderCard()
       this.trendCalendarCard()
       this.goalAdjustmentCard()
@@ -1540,6 +1542,87 @@ struct Index {
       this.exerciseRecordCard()
     }
     .width('100%')
+  }
+
+  @Builder
+  dailyCompletionCard() {
+    Column({ space: 14 }) {
+      Row() {
+        Column({ space: 4 }) {
+          Text('\u4eca\u65e5\u5b8c\u6210\u5ea6')
+            .fontSize(18)
+            .fontWeight(FontWeight.Bold)
+            .fontColor('#0F172A')
+
+          Text(this.dailyCompletionSummary().headline)
+            .fontSize(12)
+            .lineHeight(18)
+            .fontColor('#64748B')
+        }
+        .layoutWeight(1)
+        .alignItems(HorizontalAlign.Start)
+
+        Stack({ alignContent: Alignment.Center }) {
+          Progress({ value: this.dailyCompletionSummary().percent, total: 100, type: ProgressType.Ring })
+            .width(58)
+            .height(58)
+            .color('#36C79A')
+            .backgroundColor('#E2E8F0')
+
+          Text(`${this.dailyCompletionSummary().percent}%`)
+            .fontSize(13)
+            .fontWeight(FontWeight.Bold)
+            .fontColor('#0F172A')
+        }
+      }
+      .width('100%')
+      .alignItems(VerticalAlign.Center)
+
+      Row({ space: 8 }) {
+        ForEach(this.dailyCompletionSummary().items, (item: DailyCompletionItem) => {
+          Column({ space: 6 }) {
+            Text(item.title)
+              .fontSize(12)
+              .fontColor('#607184')
+
+            Text(item.valueText)
+              .fontSize(13)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(item.completed ? item.tint : '#94A3B8')
+
+            Row()
+              .width(8)
+              .height(8)
+              .borderRadius(4)
+              .backgroundColor(item.completed ? item.tint : '#CBD5E1')
+          }
+          .layoutWeight(1)
+          .padding({ top: 10, bottom: 10 })
+          .backgroundColor(item.bgColor)
+          .borderRadius(14)
+          .alignItems(HorizontalAlign.Center)
+        }, (item: DailyCompletionItem) => item.id)
+      }
+      .width('100%')
+
+      Text(this.dailyCompletionSummary().actionText)
+        .width('100%')
+        .height(38)
+        .fontSize(14)
+        .fontWeight(FontWeight.Bold)
+        .fontColor('#36C79A')
+        .textAlign(TextAlign.Center)
+        .backgroundColor('#ECFBF5')
+        .borderRadius(14)
+        .onClick(() => {
+          this.handleDailyCompletionAction();
+        })
+    }
+    .padding(18)
+    .width('100%')
+    .backgroundColor('#FFFFFF')
+    .borderRadius(24)
+    .alignItems(HorizontalAlign.Start)
   }
 
   @Builder
@@ -3002,6 +3085,53 @@ struct Index {
 
   recordRefreshKey(): string {
     return `${this.currentDayWaterTotal()}-${this.weight.toFixed(2)}-${this.calories}-${this.exerciseCaloriesBurned}-${this.steps}-${this.streakDays}-${this.weightUpdateTime}`;
+  }
+
+  dailyCompletionSummary(): DailyCompletionSummary {
+    return buildDailyCompletionSummary(this.todayRecordedMealTypeCount(), this.water, this.waterGoalMl(),
+      this.exerciseCaloriesBurned, this.hasWeightRecordToday());
+  }
+
+  hasWeightRecordToday(): boolean {
+    return latestWeightForDay(this.weightRecords, this.currentDayKey()) > 0;
+  }
+
+  handleDailyCompletionAction(): void {
+    let summary: DailyCompletionSummary = this.dailyCompletionSummary();
+    for (let index = 0; index < summary.items.length; index++) {
+      let item: DailyCompletionItem = summary.items[index];
+      if (item.completed) {
+        continue;
+      }
+      if (item.id === 'meal') {
+        this.openMealSheet(this.nextMealTypeToRecord());
+        return;
+      }
+      if (item.id === 'water') {
+        this.openWaterSheet();
+        return;
+      }
+      if (item.id === 'exercise') {
+        this.openExerciseSheet();
+        return;
+      }
+      this.openWeightInput();
+      return;
+    }
+    this.openWeeklyReportInAi();
+  }
+
+  nextMealTypeToRecord(): MealType {
+    if (this.breakfastCalories <= 0) {
+      return 'breakfast';
+    }
+    if (this.lunchCalories <= 0) {
+      return 'lunch';
+    }
+    if (this.dinnerCalories <= 0) {
+      return 'dinner';
+    }
+    return 'snack';
   }
 
   trendWindowDayKeys(): string[] {
