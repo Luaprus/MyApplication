@@ -6,6 +6,7 @@ import featureInsightsTest from './FeatureInsights.test';
 import recordInsightsTest from './RecordInsights.test';
 import aiSuggestionsTest from './AiSuggestions.test';
 import aiPromptBuildersTest from './AiPromptBuilders.test';
+import aiConversationTest from './AiConversation.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -16,4 +17,5 @@ export default function testsuite() {
   recordInsightsTest();
   aiSuggestionsTest();
   aiPromptBuildersTest();
+  aiConversationTest();
 }

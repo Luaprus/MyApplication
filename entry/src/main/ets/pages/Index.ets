@@ -31,6 +31,7 @@ import { countMealsForDay, countWaterRecordsForDay, dayRecordDetails as buildDay
 import { buildDailyCompletionSummary, DailyCompletionItem, DailyCompletionSummary } from '../models/RecordInsights';
 import { buildAiSuggestions, WEEKLY_REPORT_LABEL } from '../models/AiSuggestions';
 import { buildHealthAssistantSystemPrompt, buildWeeklyReportPrompt, HealthPromptContext } from '../models/AiPromptBuilders';
+import { buildDeepSeekMessages as buildDeepSeekMessagePayload, createPendingAiQuestion, messagesForModel, PendingAiQuestion, replaceThinkingMessage } from '../models/AiConversation';
 import { AuthModule, OnboardingModule } from './modules/AuthModule';
 import { RecordModule } from './modules/RecordModule';
 import { AiModule } from './modules/AiModule';
@@ -5433,30 +5434,18 @@ struct Index {
   }
 
   submitQuestion(content: string): void {
-    let stableMessages: ChatMessage[] = this.messagesForModel(this.messages);
     let requestId: number = Date.now();
-    let userMessage: ChatMessage = {
-      id: requestId,
-      role: 'user',
-      content: content
-    };
-    let thinkingMessage: ChatMessage = {
-      id: requestId + 1,
-      role: 'assistant',
-      content: '\u601d\u8003\u4e2d...',
-      isThinking: true
-    };
-    let nextMessages: ChatMessage[] = [...stableMessages, userMessage, thinkingMessage];
-    this.messages = nextMessages;
+    let pendingQuestion: PendingAiQuestion = createPendingAiQuestion(this.messages, content, requestId);
+    this.messages = pendingQuestion.messages;
     this.isRequesting = true;
     this.queuePersistAppState();
 
-    deepSeekService.chat(this.buildDeepSeekMessages([...stableMessages, userMessage]))
+    deepSeekService.chat(this.buildDeepSeekMessages([...pendingQuestion.stableMessages, pendingQuestion.userMessage]))
       .then((reply: string) => {
-        this.replaceThinkingMessageById(thinkingMessage.id, reply, false);
+        this.replaceThinkingMessageById(pendingQuestion.thinkingMessage.id, reply, false);
       })
       .catch((error: Error) => {
-        this.replaceThinkingMessageById(thinkingMessage.id, `\u8fde\u63a5 DeepSeek \u5931\u8d25\uff1a${error.message}\u3002`, true);
+        this.replaceThinkingMessageById(pendingQuestion.thinkingMessage.id, `\u8fde\u63a5 DeepSeek \u5931\u8d25\uff1a${error.message}\u3002`, true);
       })
       .finally(() => {
         this.isRequesting = false;
@@ -5464,60 +5453,16 @@ struct Index {
   }
 
   messagesForModel(history: ChatMessage[]): ChatMessage[] {
-    let nextHistory: ChatMessage[] = [];
-    for (let index = 0; index < history.length; index++) {
-      if (history[index].isThinking !== true) {
-        nextHistory.push(history[index]);
-      }
-    }
-    return nextHistory;
+    return messagesForModel(history);
   }
 
   replaceThinkingMessageById(thinkingId: number, content: string, isError: boolean): void {
-    let nextMessages: ChatMessage[] = [];
-    let replaced: boolean = false;
-    let nextAssistantMessageId: number = Date.now() + (isError ? 2 : 1);
-
-    for (let index = 0; index < this.messages.length; index++) {
-      let message: ChatMessage = this.messages[index];
-      if (!replaced && message.id === thinkingId) {
-        nextMessages.push({
-          id: nextAssistantMessageId,
-          role: 'assistant',
-          content: content
-        });
-        replaced = true;
-      } else {
-        nextMessages.push(message);
-      }
-    }
-
-    if (!replaced) {
-      nextMessages.push({
-        id: nextAssistantMessageId,
-        role: 'assistant',
-        content: content
-      });
-    }
-
-    this.messages = nextMessages;
+    this.messages = replaceThinkingMessage(this.messages, thinkingId, content, Date.now() + (isError ? 2 : 1));
     this.queuePersistAppState();
   }
 
   buildDeepSeekMessages(history: ChatMessage[]): DeepSeekMessage[] {
-    let systemMessage: DeepSeekMessage = {
-      role: 'system',
-      content: buildHealthAssistantSystemPrompt(this.healthPromptContext())
-    };
-    let conversation: DeepSeekMessage[] = [];
-    history.slice(-8).forEach((message: ChatMessage) => {
-      let mappedMessage: DeepSeekMessage = {
-        role: message.role,
-        content: message.content
-      };
-      conversation.push(mappedMessage);
-    });
-    return [systemMessage, ...conversation];
+    return buildDeepSeekMessagePayload(buildHealthAssistantSystemPrompt(this.healthPromptContext()), history);
   }
 
   switchAuthMode(mode: AuthMode): void {
