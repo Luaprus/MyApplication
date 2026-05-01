@@ -23,12 +23,12 @@ function buildSession(token: string): AppSessionState {
 
 export default function authSessionPersistenceTest() {
   describe('authSessionPersistenceTest', () => {
-    it('sanitizeSessionForPersistence should keep login state but clear token', 0, () => {
+    it('sanitizeSessionForPersistence should keep login state but omit token', 0, () => {
       let session: AppSessionState = sanitizeSessionForPersistence(buildSession('real-server-token'));
 
       expect(session.isAuthenticated).assertTrue();
       expect(session.loginEmail).assertEqual('alice@example.com');
-      expect(session.authToken).assertEqual('');
+      expect(session.authToken === undefined).assertTrue();
     });
 
     it('restorePersistedAuthToken should never reuse a token from Preferences', 0, () => {

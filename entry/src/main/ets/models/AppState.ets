@@ -53,7 +53,7 @@ export interface FavoriteFoodItem {
 export interface AppSessionState {
   isAuthenticated: boolean;
   authMode: AuthMode;
-  authToken: string;
+  authToken?: string;
   authHint: string;
   authProvider: string;
   loginEmail: string;

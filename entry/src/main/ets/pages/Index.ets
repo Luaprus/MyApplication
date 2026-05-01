@@ -501,7 +501,6 @@ struct Index {
       session: sanitizeSessionForPersistence({
         isAuthenticated: this.isAuthenticated,
         authMode: this.authMode,
-        authToken: this.authToken,
         authHint: this.authHint,
         authProvider: this.authProvider,
         loginEmail: this.loginEmail,

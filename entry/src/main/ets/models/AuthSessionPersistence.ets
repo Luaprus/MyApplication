@@ -4,7 +4,6 @@ export function sanitizeSessionForPersistence(session: AppSessionState): AppSess
   return {
     isAuthenticated: session.isAuthenticated,
     authMode: session.authMode,
-    authToken: '',
     authHint: session.authHint,
     authProvider: session.authProvider,
     loginEmail: session.loginEmail,
