@@ -30,6 +30,7 @@ import { goalDisplayText as getGoalDisplayText, goalPlanPreview as getGoalPlanPr
 import { countMealsForDay, countWaterRecordsForDay, dayRecordDetails as buildDayRecordDetails, trendDayDetailText as buildTrendDayDetailText, weightTextForDay as buildWeightTextForDay } from '../models/TrendDetails';
 import { buildDailyCompletionSummary, DailyCompletionItem, DailyCompletionSummary } from '../models/RecordInsights';
 import { buildAiSuggestions, WEEKLY_REPORT_LABEL } from '../models/AiSuggestions';
+import { buildHealthAssistantSystemPrompt, buildWeeklyReportPrompt, HealthPromptContext } from '../models/AiPromptBuilders';
 import { AuthModule, OnboardingModule } from './modules/AuthModule';
 import { RecordModule } from './modules/RecordModule';
 import { AiModule } from './modules/AiModule';
@@ -3266,6 +3267,21 @@ struct Index {
       this.todayRecordedMealTypeCount());
   }
 
+  healthPromptContext(): HealthPromptContext {
+    return {
+      weight: this.weight,
+      calories: this.calories,
+      water: this.water,
+      steps: this.steps,
+      streakDays: this.streakDays,
+      weekLoss: this.weekLoss,
+      exerciseCalories: this.exerciseCaloriesBurned,
+      goalAdjustment: this.goalAdjustment(),
+      reminders: this.smartReminders(),
+      achievementSummary: this.achievementSummary()
+    };
+  }
+
   achievementLinesText(): string {
     let summary: AchievementSummary = this.achievementSummary();
     if (summary.lines.length === 0) {
@@ -5491,7 +5507,7 @@ struct Index {
   buildDeepSeekMessages(history: ChatMessage[]): DeepSeekMessage[] {
     let systemMessage: DeepSeekMessage = {
       role: 'system',
-      content: `You are a helpful health assistant for a HarmonyOS app. Answer in concise Chinese by default. Current user metrics: weight ${this.weight.toFixed(2)} kg, calories ${this.calories} kcal, water ${this.water} ml, steps ${this.steps}, streak ${this.streakDays} days, weekly weight change ${this.weekLoss.toFixed(2)} kg, goal pace ${this.goalAdjustment().paceText}. Use meal, water, exercise, weight, reminders, and goal adjustment records when relevant.`
+      content: buildHealthAssistantSystemPrompt(this.healthPromptContext())
     };
     let conversation: DeepSeekMessage[] = [];
     history.slice(-8).forEach((message: ChatMessage) => {
@@ -5955,7 +5971,7 @@ struct Index {
     this.closeProfilePanel();
     this.currentTab = 1;
     this.tabsController.changeIndex(1);
-    this.submitQuestion(`\u8bf7\u751f\u6210\u4e00\u4efd\u672c\u5468 AI \u5065\u5eb7\u5468\u62a5\uff0c\u5206\u4e3a\u201c\u505a\u5f97\u597d\u7684\u5730\u65b9\u201d\u201c\u9700\u8981\u6ce8\u610f\u7684\u98ce\u9669\u201d\u201c\u4e0b\u5468\u76ee\u6807\u201d\u4e09\u6bb5\u3002\u6570\u636e\uff1a\u4f53\u91cd ${this.weight.toFixed(2)}kg\uff0c\u672c\u5468\u53d8\u5316 ${this.weekLoss.toFixed(2)}kg\uff0c\u6b65\u6570 ${this.steps}\uff0c\u996e\u98df ${this.calories}kcal\uff0c\u996e\u6c34 ${this.water}ml\uff0c\u8fd0\u52a8\u6d88\u8017 ${this.exerciseCaloriesBurned}kcal\uff0c\u8fde\u7eed\u6253\u5361 ${this.streakDays} \u5929\uff0c\u76ee\u6807\u8282\u594f ${this.goalAdjustment().paceText}\u3002`);
+    this.submitQuestion(buildWeeklyReportPrompt(this.healthPromptContext()));
   }
 
   refreshBenefitStatus(): void {

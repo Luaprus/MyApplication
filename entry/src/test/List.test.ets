@@ -5,6 +5,7 @@ import authSessionPersistenceTest from './AuthSessionPersistence.test';
 import featureInsightsTest from './FeatureInsights.test';
 import recordInsightsTest from './RecordInsights.test';
 import aiSuggestionsTest from './AiSuggestions.test';
+import aiPromptBuildersTest from './AiPromptBuilders.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -14,4 +15,5 @@ export default function testsuite() {
   featureInsightsTest();
   recordInsightsTest();
   aiSuggestionsTest();
+  aiPromptBuildersTest();
 }
