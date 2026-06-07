@@ -7,6 +7,9 @@ import recordInsightsTest from './RecordInsights.test';
 import aiSuggestionsTest from './AiSuggestions.test';
 import aiPromptBuildersTest from './AiPromptBuilders.test';
 import aiConversationTest from './AiConversation.test';
+import inputValidationTest from './InputValidation.test';
+import profileInsightsTest from './ProfileInsights.test';
+import foodScanFallbackTest from './FoodScanFallback.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -18,4 +21,7 @@ export default function testsuite() {
   aiSuggestionsTest();
   aiPromptBuildersTest();
   aiConversationTest();
+  inputValidationTest();
+  profileInsightsTest();
+  foodScanFallbackTest();
 }

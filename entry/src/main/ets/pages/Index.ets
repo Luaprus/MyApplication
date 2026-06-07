@@ -14,7 +14,7 @@ import { AppPersistentState, AppProfileState, AppRemoteState, AppSessionState, A
 import { ProfileMenuItem, SuggestionItem } from '../models/PageModels';
 import { buildWaterCardDisplayStateFromTotal } from '../models/WaterDisplay';
 import { mealSearchInputMessage, ProfileQuickTagAction, resolveProfileQuickTagAction } from '../models/InteractionActions';
-import { restorePersistedAuthToken, sanitizeSessionForPersistence } from '../models/AuthSessionPersistence';
+import { hasSyncableAuthToken, restorePersistedAuthToken, sanitizeSessionForPersistence, shouldRestoreAuthenticatedSession } from '../models/AuthSessionPersistence';
 import { AchievementSummary, buildAchievementSummary, buildGoalAdjustment, buildHealthDataCsv, buildMonthCalendarDayKeys, buildSmartReminders, buildTrendDaySummaries, calculateWeekLoss, deleteFavoriteFood, firstWeightForDay, GoalAdjustment, latestWeightForDay, SmartReminder, TrendDaySummary, updateFavoriteFood, upsertWeightRecordKeepingBaseline } from '../models/FeatureInsights';
 import { DrinkPresetItem, ExerciseCategoryItem, ExercisePresetItem, MealActionItem, MealPresetItem, ProfilePanelType, WeeklyWeightPoint } from '../models/IndexModels';
 import { EXERCISE_CATEGORIES, EXERCISE_PRESETS, MEAL_ACTIONS, MEAL_PRESETS, PROFILE_MENU_ITEMS, WATER_PRESETS, createDefaultMessages } from '../models/IndexSeedData';
@@ -28,10 +28,11 @@ import { latestWaterRecord as getLatestWaterRecord, latestWaterRecordForDisplay 
 import { applyMealCaloriesDelta as calculateMealCaloriesDelta, currentMealCaloriesValue as getCurrentMealCaloriesValue, mealCaloriesForType, mealCalorieTotals, MealCalorieTotals, mealRecordsForType } from '../models/MealInsights';
 import { goalDisplayText as getGoalDisplayText, goalPlanPreview as getGoalPlanPreview, profileBenefitCount as getProfileBenefitCount, profileHealthScore as getProfileHealthScore, profileInitial as getProfileInitial, profileMenuSubtitle as getProfileMenuSubtitle, weeklyGoalValueText as getWeeklyGoalValueText, weeklyProgressSummary as getWeeklyProgressSummary, weeklySuggestionSummary as getWeeklySuggestionSummary, weightTrendSummary as getWeightTrendSummary } from '../models/ProfileInsights';
 import { countMealsForDay, countWaterRecordsForDay, dayRecordDetails as buildDayRecordDetails, trendDayDetailText as buildTrendDayDetailText, weightTextForDay as buildWeightTextForDay } from '../models/TrendDetails';
-import { buildDailyCompletionSummary, DailyCompletionItem, DailyCompletionSummary } from '../models/RecordInsights';
+import { applyDailyCheckIn, buildDailyCompletionSummary, CheckInState, DailyCompletionItem, DailyCompletionSummary } from '../models/RecordInsights';
 import { buildAiSuggestions, WEEKLY_REPORT_LABEL } from '../models/AiSuggestions';
 import { buildHealthAssistantSystemPrompt, buildWeeklyReportPrompt, HealthPromptContext } from '../models/AiPromptBuilders';
 import { buildDeepSeekMessages as buildDeepSeekMessagePayload, createPendingAiQuestion, messagesForModel, PendingAiQuestion, replaceThinkingMessage } from '../models/AiConversation';
+import { DEMO_FOOD_IMAGE_BASE64, foodScanSourceFromUri, FoodScanSource } from '../models/FoodScanFallback';
 import { AuthModule, OnboardingModule } from './modules/AuthModule';
 import { RecordModule } from './modules/RecordModule';
 import { AiModule } from './modules/AiModule';
@@ -425,13 +426,19 @@ struct Index {
     let profile: AppProfileState = state.profile;
     let health: AppHealthState = state.health;
 
-    this.isAuthenticated = session.isAuthenticated;
-    this.authMode = session.authMode;
-    this.authToken = restorePersistedAuthToken(session);
-    this.authHint = session.authHint;
+    let restoredAuthToken: string = restorePersistedAuthToken(session);
+    let canRestoreAuthenticatedSession: boolean = shouldRestoreAuthenticatedSession(session);
+    this.isAuthenticated = canRestoreAuthenticatedSession;
+    this.authMode = canRestoreAuthenticatedSession ? session.authMode : 'login';
+    this.authToken = canRestoreAuthenticatedSession ? restoredAuthToken : '';
+    this.authHint = canRestoreAuthenticatedSession
+      ? session.authHint
+      : (session.isAuthenticated
+        ? '\u767b\u5f55\u72b6\u6001\u5df2\u8fc7\u671f\uff0c\u8bf7\u91cd\u65b0\u767b\u5f55\u540e\u540c\u6b65\u6570\u636e'
+        : session.authHint);
     this.authProvider = session.authProvider;
     this.loginEmail = session.loginEmail;
-    this.needsOnboarding = session.needsOnboarding;
+    this.needsOnboarding = canRestoreAuthenticatedSession ? session.needsOnboarding : false;
     this.onboardingName = session.onboardingName;
     this.onboardingGender = session.onboardingGender;
     this.onboardingAge = session.onboardingAge;
@@ -501,6 +508,7 @@ struct Index {
       session: sanitizeSessionForPersistence({
         isAuthenticated: this.isAuthenticated,
         authMode: this.authMode,
+        authToken: this.authToken,
         authHint: this.authHint,
         authProvider: this.authProvider,
         loginEmail: this.loginEmail,
@@ -658,8 +666,7 @@ struct Index {
     return this.isAppStateReady
       && this.isAuthenticated
       && !this.needsOnboarding
-      && this.authToken.trim().length > 0
-      && this.authToken !== 'offline-demo-token';
+      && hasSyncableAuthToken(this.authToken);
   }
 
   queueRemoteStateSync(): void {
@@ -1284,28 +1291,43 @@ struct Index {
       }
       .width('100%')
 
-      Button() {
-        Row({ space: 8 }) {
-          Image($r('app.media.icon_camera_scan'))
-            .width(22)
-            .height(22)
-            .objectFit(ImageFit.Contain)
+      Row({ space: 10 }) {
+        Button() {
+          Row({ space: 8 }) {
+            Image($r('app.media.icon_camera_scan'))
+              .width(22)
+              .height(22)
+              .objectFit(ImageFit.Contain)
 
-          Text('\u62cd\u7167\u8bc6\u522b\u98df\u7269\u70ed\u91cf')
-            .fontSize(15)
-            .fontWeight(FontWeight.Bold)
-            .fontColor('#36C79A')
+            Text('\u9009\u62e9\u56fe\u7247\u8bc6\u522b')
+              .fontSize(15)
+              .fontWeight(FontWeight.Bold)
+              .fontColor('#36C79A')
+          }
+          .justifyContent(FlexAlign.Center)
+          .alignItems(VerticalAlign.Center)
         }
-        .justifyContent(FlexAlign.Center)
-        .alignItems(VerticalAlign.Center)
+          .layoutWeight(1)
+          .height(46)
+          .backgroundColor('#F2FCF9')
+          .borderRadius(23)
+          .onClick(() => {
+            this.startFoodScan();
+          })
+
+        Button('\u6f14\u793a\u8bc6\u522b')
+          .width(104)
+          .height(46)
+          .fontSize(14)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#4B8DFF')
+          .backgroundColor('#EEF4FF')
+          .borderRadius(23)
+          .onClick(() => {
+            this.startDemoFoodScan();
+          })
       }
-        .width('100%')
-        .height(46)
-        .backgroundColor('#F2FCF9')
-        .borderRadius(23)
-        .onClick(() => {
-          this.startFoodScan();
-        })
+      .width('100%')
 
       if (this.lastScannedFood.length > 0) {
         Column({ space: 12 }) {
@@ -5330,22 +5352,24 @@ struct Index {
   checkIn(): void {
     this.ensureDailyHealthStateCurrent();
     let todayKey: string = this.currentDayKey();
-    if (this.lastCheckInDayKey === todayKey) {
-      this.checkedToday = true;
-      return;
-    }
+    let previousTotalCheckIns: number = this.totalCheckIns;
+    let nextState: CheckInState = applyDailyCheckIn({
+      activeHealthDayKey: this.activeHealthDayKey,
+      lastCheckInDayKey: this.lastCheckInDayKey,
+      checkedToday: this.checkedToday,
+      totalCheckIns: this.totalCheckIns,
+      streakDays: this.streakDays
+    }, todayKey, this.dayKeyFromOffset(-1));
 
-    if (this.lastCheckInDayKey === this.dayKeyFromOffset(-1)) {
-      this.streakDays += 1;
-    } else {
-      this.streakDays = 1;
+    this.activeHealthDayKey = nextState.activeHealthDayKey;
+    this.lastCheckInDayKey = nextState.lastCheckInDayKey;
+    this.checkedToday = nextState.checkedToday;
+    this.totalCheckIns = nextState.totalCheckIns;
+    this.streakDays = nextState.streakDays;
+    if (this.totalCheckIns > previousTotalCheckIns) {
+      this.awardPoints(5);
     }
-
-    this.activeHealthDayKey = todayKey;
-    this.lastCheckInDayKey = todayKey;
-    this.checkedToday = true;
-    this.totalCheckIns += 1;
-    this.awardPoints(5);
+    this.refreshRecordModuleKeepingScroll();
     this.queuePersistAppState();
   }
 
@@ -5358,21 +5382,56 @@ struct Index {
     try {
       let photoUri: string = await this.pickFoodPhoto();
       if (photoUri.length === 0) {
+        this.lastScannedFood = '\u672a\u9009\u62e9\u56fe\u7247';
+        this.lastScannedCalories = 0;
+        this.lastScannedSummary = '\u7cfb\u7edf\u56fe\u5e93\u672a\u8fd4\u56de\u56fe\u7247\uff0c\u53ef\u4ee5\u5148\u70b9\u201c\u6f14\u793a\u8bc6\u522b\u201d\u5b8c\u6210\u5c55\u793a\u6d41\u7a0b\u3002';
+        this.lastScannedAssignedMeal = '';
+        this.queuePersistAppState();
         return;
       }
-
-      this.scannedImageUri = photoUri;
-      this.foodScanStatus = '\u6b63\u5728\u8bfb\u53d6\u7167\u7247...';
+      let scanSource: FoodScanSource = foodScanSourceFromUri(photoUri);
+      this.scannedImageUri = scanSource.uri;
+      this.foodScanStatus = scanSource.status;
       this.isScanningFood = true;
 
-      let base64Image: string = await this.convertImageUriToBase64(photoUri);
-      let imageMimeType: string = this.detectImageMimeType(photoUri);
+      let base64Image: string = scanSource.useDemoImage ? DEMO_FOOD_IMAGE_BASE64 : await this.convertImageUriToBase64(scanSource.uri);
+      let imageMimeType: string = scanSource.useDemoImage ? 'image/png' : this.detectImageMimeType(scanSource.uri);
       this.foodScanStatus = '\u6b63\u5728\u8ba1\u7b97\u98df\u7269\u70ed\u91cf...';
 
       let result: FoodRecognitionResult = await doubaoVisionService.analyzeFoodImage(base64Image, imageMimeType);
       this.lastScannedFood = result.foodName;
       this.lastScannedCalories = result.estimatedCalories;
-      this.lastScannedSummary = result.summary;
+      this.lastScannedSummary = scanSource.useDemoImage
+        ? `\u672a\u80fd\u6253\u5f00\u56fe\u5e93\uff0c\u5df2\u4f7f\u7528\u6f14\u793a\u56fe\u7247\u3002${result.summary}`
+        : result.summary;
+      this.lastScannedAssignedMeal = '';
+    } catch (error) {
+      this.lastScannedFood = '\u8bc6\u522b\u5931\u8d25';
+      this.lastScannedCalories = 0;
+      this.lastScannedSummary = this.errorMessage(error);
+      this.lastScannedAssignedMeal = '';
+    } finally {
+      this.foodScanStatus = 'AI \u89c6\u89c9\u8bc6\u522b\u4e2d...';
+      this.isScanningFood = false;
+      this.queuePersistAppState();
+    }
+  }
+
+  async startDemoFoodScan(): Promise<void> {
+    this.ensureDailyHealthStateCurrent();
+    if (this.isScanningFood) {
+      return;
+    }
+
+    this.scannedImageUri = '';
+    this.foodScanStatus = '\u6b63\u5728\u8ba1\u7b97\u6f14\u793a\u56fe\u7247\u70ed\u91cf...';
+    this.isScanningFood = true;
+
+    try {
+      let result: FoodRecognitionResult = await doubaoVisionService.analyzeFoodImage(DEMO_FOOD_IMAGE_BASE64, 'image/png');
+      this.lastScannedFood = result.foodName;
+      this.lastScannedCalories = result.estimatedCalories;
+      this.lastScannedSummary = `\u6f14\u793a\u8bc6\u522b\uff1a${result.summary}`;
       this.lastScannedAssignedMeal = '';
     } catch (error) {
       this.lastScannedFood = '\u8bc6\u522b\u5931\u8d25';
@@ -5850,11 +5909,27 @@ struct Index {
     }
 
     let signature: string = `\u672c\u5468\u76ee\u6807\uff1a\u6bcf\u5468\u7a33\u5b9a\u8fdb\u5c55 ${weeklyTarget}kg\uff0c${reminderTime} \u63d0\u9192\u56de\u770b`;
+    if (!hasSyncableAuthToken(this.authToken)) {
+      this.profileGoalText = goalText;
+      this.profileSignature = signature;
+      this.profileGoalDraft = goalText;
+      this.profileWeeklyTargetDraft = weeklyTarget;
+      this.profileReminderTimeDraft = reminderTime;
+      this.profileActionMessage = this.authToken.trim().length === 0
+        ? '\u767b\u5f55\u72b6\u6001\u5df2\u8fc7\u671f\uff0c\u76ee\u6807\u5df2\u5148\u4fdd\u5b58\u5230\u672c\u5730'
+        : '\u6f14\u793a\u8d26\u53f7\u76ee\u6807\u5df2\u5728\u672c\u5730\u66f4\u65b0';
+      this.queuePersistAppState();
+      return;
+    }
+
     try {
       const response = await authService.updateProfile(this.authToken, this.profileEmail, this.profileName, goalText, signature);
       if (response.user) {
         this.applyAuthUser(response.user);
       }
+      this.profileGoalDraft = goalText;
+      this.profileWeeklyTargetDraft = weeklyTarget;
+      this.profileReminderTimeDraft = reminderTime;
       this.profileActionMessage = '\u76ee\u6807\u8bbe\u5b9a\u5df2\u66f4\u65b0';
       this.queuePersistAppState();
     } catch (error) {
@@ -6779,20 +6854,53 @@ struct Index {
     let options = new photoAccessHelper.PhotoSelectOptions();
     options.MIMEType = photoAccessHelper.PhotoViewMIMETypes.IMAGE_TYPE;
     options.maxSelectNumber = 1;
-    options.isPhotoTakingSupported = true;
+    options.isPhotoTakingSupported = false;
     options.isSearchSupported = false;
     options.isEditSupported = false;
     options.isOriginalSupported = false;
 
     try {
-      let result = await picker.select(options);
-      if (result.photoUris.length === 0) {
+      let photoUris: string[] = await this.pickFoodPhotoUrisWithTimeout(picker, options, 12000);
+      if (photoUris.length === 0) {
         return '';
       }
-      return result.photoUris[0];
+      return photoUris[0];
     } catch (error) {
       return '';
     }
+  }
+
+  pickFoodPhotoUrisWithTimeout(picker: photoAccessHelper.PhotoViewPicker,
+    options: photoAccessHelper.PhotoSelectOptions, timeoutMs: number): Promise<string[]> {
+    return new Promise<string[]>(
+      (resolve: (value: string[]) => void, reject: (reason?: Object | string) => void) => {
+        let settled: boolean = false;
+        let timerId: number = setTimeout(() => {
+          if (settled) {
+            return;
+          }
+          settled = true;
+          resolve([]);
+        }, timeoutMs);
+
+        picker.select(options)
+          .then((result: photoAccessHelper.PhotoSelectResult) => {
+            if (settled) {
+              return;
+            }
+            settled = true;
+            clearTimeout(timerId);
+            resolve(result.photoUris);
+          })
+          .catch((error: Object | string) => {
+            if (settled) {
+              return;
+            }
+            settled = true;
+            clearTimeout(timerId);
+            reject(error);
+          });
+      });
   }
 
   async convertImageUriToBase64(uri: string): Promise<string> {

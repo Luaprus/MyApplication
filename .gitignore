@@ -15,3 +15,5 @@
 /backend/.env
 /backend/.npm-cache
 /backend/data
+/key.txt
+/presentation_output/run_logs

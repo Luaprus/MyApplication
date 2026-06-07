@@ -61,6 +61,15 @@ function parseFoodResult(rawReply) {
   }
 }
 
+function demoFoodResult(reason = '未配置豆包视觉模型') {
+  return {
+    foodName: '演示识别：家常餐食',
+    estimatedCalories: 420,
+    summary: `${reason}，已使用本地演示估算。真实拍照识别需要在 backend/.env 配置 DOUBAO_API_KEY 和 DOUBAO_ENDPOINT_ID。`,
+    rawReply: reason
+  };
+}
+
 function normalizeMimeType(mimeType) {
   const value = String(mimeType || '').trim().toLowerCase();
   if (value === 'image/png' || value === 'image/webp' || value === 'image/heic' || value === 'image/heif') {
@@ -86,7 +95,7 @@ function parseDoubaoError(data, status) {
 
 async function analyzeFoodImage(base64Image, mimeType) {
   if (!config.doubao.apiKey || !config.doubao.endpointId) {
-    throw new Error('\u670d\u52a1\u7aef\u672a\u914d\u7f6e\u8c46\u5305\u89c6\u89c9\u6a21\u578b');
+    return demoFoodResult();
   }
 
   let normalizedMimeType = normalizeMimeType(mimeType);
@@ -153,9 +162,9 @@ async function analyzeFoodImage(base64Image, mimeType) {
   }
 
   if (lastError instanceof Error) {
-    throw lastError;
+    return demoFoodResult(`豆包视觉调用失败：${lastError.message}`);
   }
-  throw new Error('豆包视觉识别失败');
+  return demoFoodResult('豆包视觉识别失败');
 }
 
 module.exports = {

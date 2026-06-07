@@ -1,4 +1,5 @@
 import { AuthMode } from '../../models/AppState';
+import { decimalText, integerText } from '../../models/InputValidation';
 
 @Component
 export struct AuthModule {
@@ -296,26 +297,26 @@ export struct OnboardingModule {
 
         Row({ space: 10 }) {
           this.onboardingInputCard('\u5e74\u9f84', '\u4f8b\u5982\uff1a24', this.onboardingAge, InputType.Number, (value: string) => {
-            this.onboardingAge = value;
+            this.onboardingAge = integerText(value);
             this.onboardingError = '';
           })
-          this.onboardingInputCard('\u8eab\u9ad8(cm)', '\u4f8b\u5982\uff1a168', this.onboardingHeight, InputType.Number, (value: string) => {
-            this.onboardingHeight = value;
+          this.onboardingInputCard('\u8eab\u9ad8(cm)', '\u4f8b\u5982\uff1a168.5', this.onboardingHeight, InputType.Normal, (value: string) => {
+            this.onboardingHeight = decimalText(value);
             this.onboardingError = '';
           })
         }
         .width('100%')
 
-        this.onboardingInputCard('\u5f53\u524d\u4f53\u91cd(kg)', '\u4f8b\u5982\uff1a62.5', this.onboardingCurrentWeight, InputType.Number, (value: string) => {
-          this.onboardingCurrentWeight = value;
+        this.onboardingInputCard('\u5f53\u524d\u4f53\u91cd(kg)', '\u4f8b\u5982\uff1a62.5', this.onboardingCurrentWeight, InputType.Normal, (value: string) => {
+          this.onboardingCurrentWeight = decimalText(value);
           this.onboardingError = '';
         })
-        this.onboardingInputCard('\u76ee\u6807\u4f53\u91cd(kg)', '\u4f8b\u5982\uff1a57.0', this.onboardingTargetWeight, InputType.Number, (value: string) => {
-          this.onboardingTargetWeight = value;
+        this.onboardingInputCard('\u76ee\u6807\u4f53\u91cd(kg)', '\u4f8b\u5982\uff1a57.0', this.onboardingTargetWeight, InputType.Normal, (value: string) => {
+          this.onboardingTargetWeight = decimalText(value);
           this.onboardingError = '';
         })
-        this.onboardingInputCard('\u6bcf\u5468\u76ee\u6807(kg)', '\u4f8b\u5982\uff1a0.3', this.onboardingWeeklyTarget, InputType.Number, (value: string) => {
-          this.onboardingWeeklyTarget = value;
+        this.onboardingInputCard('\u6bcf\u5468\u76ee\u6807(kg)', '\u4f8b\u5982\uff1a0.3', this.onboardingWeeklyTarget, InputType.Normal, (value: string) => {
+          this.onboardingWeeklyTarget = decimalText(value);
           this.onboardingError = '';
         })
 
@@ -420,13 +421,13 @@ export struct OnboardingModule {
 
   @Builder
   choiceButton(title: string, active: boolean) {
-    Button(title)
+    Button(active ? title + '  已选' : title)
       .layoutWeight(1)
       .height(46)
       .fontSize(15)
       .fontWeight(FontWeight.Bold)
-      .fontColor(active ? '#36C79A' : '#607184')
-      .backgroundColor(active ? '#ECFBF5' : '#F8FAFC')
+      .fontColor(active ? '#FFFFFF' : '#607184')
+      .backgroundColor(active ? '#36C79A' : '#F8FAFC')
       .borderRadius(14)
       .padding(0)
       .onClick(() => {

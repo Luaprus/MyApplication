@@ -2,9 +2,9 @@
 setlocal
 
 set "PROJECT_DIR=%~dp0"
-set "HVIGORW=D:\software\deveco\DevEco Studio\tools\hvigor\bin\hvigorw.bat"
-set "DEVECO_SDK_HOME=D:\software\deveco\DevEco Studio\sdk"
-set "OHOS_BASE_SDK_HOME=D:\software\deveco\DevEco Studio\sdk\default\openharmony"
+set "HVIGORW=E:\DevEco Studio6.0.1\DevEco Studio\tools\hvigor\bin\hvigorw.bat"
+set "DEVECO_SDK_HOME=E:\DevEco Studio6.0.1\DevEco Studio\sdk"
+set "OHOS_BASE_SDK_HOME=E:\DevEco Studio6.0.1\DevEco Studio\sdk\default\openharmony"
 
 if not exist "%HVIGORW%" (
   echo ERROR: hvigorw not found at:

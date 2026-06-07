@@ -1,6 +1,6 @@
 import { describe, it, expect } from '@ohos/hypium';
 import { ChatMessage } from '../main/ets/models/AppState';
-import { buildDeepSeekMessages, createPendingAiQuestion, messagesForModel, PendingAiQuestion, replaceThinkingMessage } from '../main/ets/models/AiConversation';
+import { buildDeepSeekMessages, createPendingAiQuestion, messagesForModel, PendingAiQuestion, replaceThinkingMessage, sanitizeAssistantReply } from '../main/ets/models/AiConversation';
 import { DeepSeekMessage } from '../main/ets/services/DeepSeekService';
 
 export default function aiConversationTest() {
@@ -32,6 +32,12 @@ export default function aiConversationTest() {
       expect(replaced[2].isThinking === true).assertFalse();
       expect(fallback.length).assertEqual(3);
       expect(fallback[2].content).assertEqual('\u8865\u4e00\u6761\u56de\u590d');
+    });
+
+    it('sanitizeAssistantReply should remove markdown heading and divider markers', 0, () => {
+      let reply: string = sanitizeAssistantReply('---\n\n### \ud83c\udfaf \u4e0b\u5468\u76ee\u6807\n1. **\u6bcf\u65e5\u589e\u52a0 3000-5000 \u6b65**\uff1a\u53ef\u5206\u6563\u5728\u996d\u540e\u3002\n\n---\n\n\u5982\u679c\u4f60\u60f3\uff0c\u6211\u4e5f\u53ef\u4ee5\u8f6c\u4e3a\u63d0\u9192\u4efb\u52a1\u3002');
+
+      expect(reply).assertEqual('\ud83c\udfaf \u4e0b\u5468\u76ee\u6807\n1. \u6bcf\u65e5\u589e\u52a0 3000-5000 \u6b65\uff1a\u53ef\u5206\u6563\u5728\u996d\u540e\u3002\n\n\u5982\u679c\u4f60\u60f3\uff0c\u6211\u4e5f\u53ef\u4ee5\u8f6c\u4e3a\u63d0\u9192\u4efb\u52a1\u3002');
     });
 
     it('buildDeepSeekMessages should prepend system prompt and limit recent history', 0, () => {

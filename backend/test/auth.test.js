@@ -220,3 +220,108 @@ test('profile endpoint updates the authenticated user, not body email', async (t
   assert.equal(response.body.user.email, aliceEmail);
   assert.equal(response.body.user.name, 'Alice Secure');
 });
+
+test('register endpoint validates input before creating an account', async (t) => {
+  const server = await startServer(t);
+
+  const blankName = await postJson(server.baseUrl, '/api/auth/register', {
+    name: '   ',
+    email: 'blank-name@example.com',
+    password: '12345678'
+  });
+  const badEmail = await postJson(server.baseUrl, '/api/auth/register', {
+    name: 'Bad Email',
+    email: 'not-an-email',
+    password: '12345678'
+  });
+  const shortPassword = await postJson(server.baseUrl, '/api/auth/register', {
+    name: 'Short Password',
+    email: 'short-password@example.com',
+    password: '123'
+  });
+
+  assert.equal(blankName.status, 400);
+  assert.equal(blankName.body.message, '昵称不能为空');
+  assert.equal(badEmail.status, 400);
+  assert.equal(badEmail.body.message, '邮箱格式不正确');
+  assert.equal(shortPassword.status, 400);
+  assert.equal(shortPassword.body.message, '密码至少需要 6 位');
+});
+
+test('onboarding endpoint stores decimal profile values for the authenticated user', async (t) => {
+  const server = await startServer(t);
+  const suffix = `${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+  const email = `onboarding-${suffix}@example.com`;
+
+  await postJson(server.baseUrl, '/api/auth/register', {
+    name: 'Onboarding',
+    email,
+    password: '12345678'
+  });
+  const login = await postJson(server.baseUrl, '/api/auth/login', {
+    email,
+    password: '12345678'
+  });
+
+  const response = await postJson(server.baseUrl, '/api/auth/onboarding', {
+    name: 'Onboarding User',
+    gender: '男',
+    age: 23.4,
+    heightCm: 180.5,
+    currentWeightKg: 70.25,
+    targetWeightKg: 66.75,
+    weeklyTargetKg: 0.45
+  }, login.body.token);
+
+  assert.equal(response.status, 200);
+  assert.equal(response.body.user.name, 'Onboarding User');
+  assert.equal(response.body.user.heightCm, 180.5);
+  assert.equal(response.body.user.currentWeightKg, 70.25);
+  assert.equal(response.body.user.targetWeightKg, 66.75);
+  assert.equal(response.body.user.weeklyTargetKg, 0.45);
+  assert.equal(response.body.user.onboardingCompleted, true);
+});
+
+test('password endpoint rejects invalid updates and lets the new password log in', async (t) => {
+  const server = await startServer(t);
+  const suffix = `${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+  const email = `password-${suffix}@example.com`;
+
+  await postJson(server.baseUrl, '/api/auth/register', {
+    name: 'Password User',
+    email,
+    password: '12345678'
+  });
+  const login = await postJson(server.baseUrl, '/api/auth/login', {
+    email,
+    password: '12345678'
+  });
+
+  const wrongCurrent = await postJson(server.baseUrl, '/api/auth/password', {
+    currentPassword: 'bad-password',
+    nextPassword: '87654321'
+  }, login.body.token);
+  const shortNext = await postJson(server.baseUrl, '/api/auth/password', {
+    currentPassword: '12345678',
+    nextPassword: '123'
+  }, login.body.token);
+  const changed = await postJson(server.baseUrl, '/api/auth/password', {
+    currentPassword: '12345678',
+    nextPassword: '87654321'
+  }, login.body.token);
+  const oldLogin = await postJson(server.baseUrl, '/api/auth/login', {
+    email,
+    password: '12345678'
+  });
+  const newLogin = await postJson(server.baseUrl, '/api/auth/login', {
+    email,
+    password: '87654321'
+  });
+
+  assert.equal(wrongCurrent.status, 400);
+  assert.equal(shortNext.status, 400);
+  assert.equal(changed.status, 200);
+  assert.equal(oldLogin.status, 400);
+  assert.equal(newLogin.status, 200);
+  assert.equal(newLogin.body.user.email, email);
+});

@@ -18,6 +18,27 @@ export function messagesForModel(history: ChatMessage[]): ChatMessage[] {
   return nextHistory;
 }
 
+export function sanitizeAssistantReply(content: string): string {
+  let cleanedLines: string[] = [];
+  let lines: string[] = content.split('\n');
+
+  for (let index = 0; index < lines.length; index++) {
+    let line: string = lines[index].trim();
+    if (/^(-{3,}|\*{3,}|_{3,})$/.test(line)) {
+      continue;
+    }
+
+    line = line.replace(/^#{1,6}\s*/, '');
+    line = line.replace(/\*\*/g, '');
+    line = line.replace(/__/g, '');
+    cleanedLines.push(line);
+  }
+
+  return cleanedLines.join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 export function createPendingAiQuestion(history: ChatMessage[], content: string, requestId: number): PendingAiQuestion {
   let stableMessages: ChatMessage[] = messagesForModel(history);
   let userMessage: ChatMessage = {
@@ -51,7 +72,7 @@ export function replaceThinkingMessage(history: ChatMessage[], thinkingId: numbe
       nextMessages.push({
         id: assistantMessageId,
         role: 'assistant',
-        content: content
+        content: sanitizeAssistantReply(content)
       });
       replaced = true;
     } else {
@@ -63,7 +84,7 @@ export function replaceThinkingMessage(history: ChatMessage[], thinkingId: numbe
     nextMessages.push({
       id: assistantMessageId,
       role: 'assistant',
-      content: content
+      content: sanitizeAssistantReply(content)
     });
   }
 

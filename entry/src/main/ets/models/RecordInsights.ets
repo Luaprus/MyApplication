@@ -16,6 +16,29 @@ export interface DailyCompletionSummary {
   items: DailyCompletionItem[];
 }
 
+export interface CheckInState {
+  activeHealthDayKey: string;
+  lastCheckInDayKey: string;
+  checkedToday: boolean;
+  totalCheckIns: number;
+  streakDays: number;
+}
+
+export function applyDailyCheckIn(state: CheckInState, todayKey: string, yesterdayKey: string): CheckInState {
+  if (state.checkedToday && state.lastCheckInDayKey === todayKey) {
+    return state;
+  }
+
+  let nextStreakDays: number = state.lastCheckInDayKey === yesterdayKey ? state.streakDays + 1 : 1;
+  return {
+    activeHealthDayKey: todayKey,
+    lastCheckInDayKey: todayKey,
+    checkedToday: true,
+    totalCheckIns: state.totalCheckIns + 1,
+    streakDays: nextStreakDays
+  };
+}
+
 export function buildDailyCompletionSummary(recordedMealTypeCount: number, water: number, waterGoal: number,
   exerciseCalories: number, hasWeightToday: boolean): DailyCompletionSummary {
   let items: DailyCompletionItem[] = [

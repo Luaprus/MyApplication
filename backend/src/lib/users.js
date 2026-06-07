@@ -158,12 +158,25 @@ function ensureDemoUser() {
 
 function registerLocalUser(name, email, password) {
   const users = readUsers();
-  const normalizedEmail = email.toLowerCase();
+  const normalizedName = String(name || '').trim();
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  const normalizedPassword = String(password || '');
+
+  if (normalizedName.length === 0) {
+    throw new Error('\u6635\u79f0\u4e0d\u80fd\u4e3a\u7a7a');
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+    throw new Error('\u90ae\u7bb1\u683c\u5f0f\u4e0d\u6b63\u786e');
+  }
+  if (normalizedPassword.trim().length < 6) {
+    throw new Error('\u5bc6\u7801\u81f3\u5c11\u9700\u8981 6 \u4f4d');
+  }
+
   const existing = users.find((item) => item.email === normalizedEmail);
   if (existing) {
     throw new Error('\u8be5\u90ae\u7bb1\u5df2\u7ecf\u6ce8\u518c\u8fc7\u4e86');
   }
-  const user = buildLocalUser(name, normalizedEmail, password);
+  const user = buildLocalUser(normalizedName, normalizedEmail, normalizedPassword);
   users.push(user);
   writeUsers(users);
   return sanitizeUser(user);
@@ -171,7 +184,7 @@ function registerLocalUser(name, email, password) {
 
 function loginLocalUser(email, password) {
   const users = readUsers();
-  const normalizedEmail = email.toLowerCase();
+  const normalizedEmail = String(email || '').trim().toLowerCase();
   const user = users.find((item) => item.email === normalizedEmail && item.provider === 'local');
   if (!user) {
     throw new Error('\u8d26\u53f7\u6216\u5bc6\u7801\u4e0d\u6b63\u786e');
@@ -343,12 +356,12 @@ function applyOnboardingUpdate(user, payload) {
   user.name = nextName;
   user.gender = nextGender;
   user.age = Number(nextAge.toFixed(0));
-  user.heightCm = Number(nextHeightCm.toFixed(0));
+  user.heightCm = Number(nextHeightCm.toFixed(1));
   user.currentWeightKg = Number(nextCurrentWeightKg.toFixed(2));
   user.targetWeightKg = Number(nextTargetWeightKg.toFixed(2));
   user.weeklyTargetKg = Number(nextWeeklyTargetKg.toFixed(2));
-  user.goalText = `${nextTargetWeightKg.toFixed(1)}kg \u76ee\u6807`;
-  user.signature = `\u8ba1\u5212\u6bcf\u5468\u7a33\u5b9a\u63a8\u8fdb ${nextWeeklyTargetKg.toFixed(1)}kg`;
+  user.goalText = `${Number(nextTargetWeightKg.toFixed(2))}kg \u76ee\u6807`;
+  user.signature = `\u8ba1\u5212\u6bcf\u5468\u7a33\u5b9a\u63a8\u8fdb ${Number(nextWeeklyTargetKg.toFixed(2))}kg`;
   user.membership = '\u57fa\u7840\u7248';
   user.points = 0;
   user.onboardingCompleted = true;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from '@ohos/hypium';
-import { buildDailyCompletionSummary, DailyCompletionSummary } from '../main/ets/models/RecordInsights';
+import { applyDailyCheckIn, buildDailyCompletionSummary, CheckInState, DailyCompletionSummary } from '../main/ets/models/RecordInsights';
 
 export default function recordInsightsTest() {
   describe('recordInsightsTest', () => {
@@ -19,6 +19,38 @@ export default function recordInsightsTest() {
       expect(summary.completedCount).assertEqual(4);
       expect(summary.actionText).assertEqual('\u53bb\u770b AI \u5468\u62a5');
       expect(summary.items[1].valueText).assertEqual('100%');
+    });
+
+    it('applyDailyCheckIn should increment totals and streak for a new day', 0, () => {
+      let state: CheckInState = {
+        activeHealthDayKey: '2026-06-07',
+        lastCheckInDayKey: '2026-06-06',
+        checkedToday: false,
+        totalCheckIns: 12,
+        streakDays: 6
+      };
+
+      let next: CheckInState = applyDailyCheckIn(state, '2026-06-07', '2026-06-06');
+
+      expect(next.checkedToday).assertTrue();
+      expect(next.lastCheckInDayKey).assertEqual('2026-06-07');
+      expect(next.totalCheckIns).assertEqual(13);
+      expect(next.streakDays).assertEqual(7);
+    });
+
+    it('applyDailyCheckIn should not double count an already checked day', 0, () => {
+      let state: CheckInState = {
+        activeHealthDayKey: '2026-06-07',
+        lastCheckInDayKey: '2026-06-07',
+        checkedToday: true,
+        totalCheckIns: 13,
+        streakDays: 7
+      };
+
+      let next: CheckInState = applyDailyCheckIn(state, '2026-06-07', '2026-06-06');
+
+      expect(next.totalCheckIns).assertEqual(13);
+      expect(next.streakDays).assertEqual(7);
     });
   });
 }

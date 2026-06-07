@@ -18,9 +18,26 @@ function parseDeepSeekError(data, status) {
   return `DeepSeek HTTP ${status}`;
 }
 
+function localDemoReply(messages, reason = 'DeepSeek API Key 未配置') {
+  const userMessages = Array.isArray(messages)
+    ? messages.filter((message) => message?.role === 'user')
+    : [];
+  const question = String(userMessages[userMessages.length - 1]?.content || '').trim();
+  const topic = question || '今天的健康记录';
+
+  return [
+    `（本地演示回复：${reason}）`,
+    `关于“${topic}”，可以先按一个稳妥的减脂节奏来做：`,
+    '1. 每餐保留优质蛋白，比如鸡蛋、鱼虾、鸡胸肉或豆腐。',
+    '2. 主食不要完全不吃，优先选择米饭半碗、燕麦、红薯这类更稳定的来源。',
+    '3. 晚上如果饿，先补水，再选酸奶、水果或少量坚果，避免临睡前高油高糖。',
+    '4. 明天继续记录体重、饮水和运动，AI 周报会更容易给出个性化建议。'
+  ].join('\n');
+}
+
 async function chatWithDeepSeek(messages) {
   if (!config.deepseek.apiKey) {
-    throw new Error('\u670d\u52a1\u7aef\u672a\u914d\u7f6e DeepSeek API Key');
+    return localDemoReply(messages);
   }
 
   let lastError = null;
@@ -65,9 +82,9 @@ async function chatWithDeepSeek(messages) {
   }
 
   if (lastError instanceof Error) {
-    throw lastError;
+    return localDemoReply(messages, `DeepSeek 调用失败：${lastError.message}`);
   }
-  throw new Error('DeepSeek \u8c03\u7528\u5931\u8d25');
+  return localDemoReply(messages, 'DeepSeek 调用失败');
 }
 
 module.exports = {

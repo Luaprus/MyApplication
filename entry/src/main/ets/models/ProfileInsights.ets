@@ -63,6 +63,11 @@ export function weeklySuggestionSummary(exerciseCaloriesBurned: number, calories
 
 export function goalPlanPreview(weight: number, onboardingTargetWeight: string, profileGoalDraft: string,
   profileWeeklyTargetDraft: string, profileReminderTimeDraft: string): string {
+  let normalizedGoalDraft: string = profileGoalDraft.trim();
+  if (normalizedGoalDraft.length > 0) {
+    return `\u9636\u6bb5\u76ee\u6807\uff1a${normalizedGoalDraft}\uff0c\u672c\u5468\u671f\u5f85\u8fdb\u5c55 ${profileWeeklyTargetDraft}kg\uff0c\u6bcf\u5929 ${profileReminderTimeDraft} \u63d0\u9192\u56de\u770b\u3002`;
+  }
+
   let targetWeight: number = Number(onboardingTargetWeight.trim());
   if (!Number.isNaN(targetWeight) && targetWeight > 0) {
     let distance: number = Number(Math.abs(weight - targetWeight).toFixed(1));
@@ -72,10 +77,14 @@ export function goalPlanPreview(weight: number, onboardingTargetWeight: string, 
     }
     return `\u5f53\u524d ${weight.toFixed(1)}kg\uff0c\u76ee\u6807 ${targetWeight.toFixed(1)}kg\uff0c\u8fd8\u9700 ${direction} ${distance.toFixed(1)}kg\uff0c\u672c\u5468\u671f\u5f85\u8fdb\u5c55 ${profileWeeklyTargetDraft}kg\uff0c\u6bcf\u5929 ${profileReminderTimeDraft} \u63d0\u9192\u56de\u770b\u3002`;
   }
-  return `\u9636\u6bb5\u76ee\u6807\uff1a${profileGoalDraft}\uff0c\u672c\u5468\u671f\u5f85\u8fdb\u5c55 ${profileWeeklyTargetDraft}kg\uff0c\u6bcf\u5929 ${profileReminderTimeDraft} \u63d0\u9192\u56de\u770b\u3002`;
+  return `\u9636\u6bb5\u76ee\u6807\uff1a\u4fdd\u6301\u8bb0\u5f55\uff0c\u672c\u5468\u671f\u5f85\u8fdb\u5c55 ${profileWeeklyTargetDraft}kg\uff0c\u6bcf\u5929 ${profileReminderTimeDraft} \u63d0\u9192\u56de\u770b\u3002`;
 }
 
 export function goalDisplayText(weight: number, onboardingTargetWeight: string, profileGoalText: string): string {
+  if (profileGoalText.trim().length > 0) {
+    return profileGoalText;
+  }
+
   let targetWeight: number = Number(onboardingTargetWeight.trim());
   if (!Number.isNaN(targetWeight) && targetWeight > 0) {
     let delta: number = Number((weight - targetWeight).toFixed(1));
@@ -86,9 +95,6 @@ export function goalDisplayText(weight: number, onboardingTargetWeight: string, 
       return `\u51cf\u8102 ${delta.toFixed(1)}kg`;
     }
     return `\u589e\u91cd ${Math.abs(delta).toFixed(1)}kg`;
-  }
-  if (profileGoalText.trim().length > 0) {
-    return profileGoalText;
   }
   return '\u4fdd\u6301\u8bb0\u5f55';
 }
