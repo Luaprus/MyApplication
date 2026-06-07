@@ -31,7 +31,7 @@ import { countMealsForDay, countWaterRecordsForDay, dayRecordDetails as buildDay
 import { applyDailyCheckIn, buildDailyCompletionSummary, CheckInState, DailyCompletionItem, DailyCompletionSummary } from '../models/RecordInsights';
 import { buildAiSuggestions, WEEKLY_REPORT_LABEL } from '../models/AiSuggestions';
 import { buildHealthAssistantSystemPrompt, buildWeeklyReportPrompt, HealthPromptContext } from '../models/AiPromptBuilders';
-import { buildDeepSeekMessages as buildDeepSeekMessagePayload, createPendingAiQuestion, messagesForModel, PendingAiQuestion, replaceThinkingMessage } from '../models/AiConversation';
+import { buildDeepSeekMessages as buildDeepSeekMessagePayload, createPendingAiQuestion, messagesForModel, normalizeAssistantMessages, PendingAiQuestion, replaceThinkingMessage } from '../models/AiConversation';
 import { DEMO_FOOD_IMAGE_BASE64, foodScanSourceFromUri, FoodScanSource } from '../models/FoodScanFallback';
 import { AuthModule, OnboardingModule } from './modules/AuthModule';
 import { RecordModule } from './modules/RecordModule';
@@ -499,7 +499,9 @@ struct Index {
     this.exerciseRecords = Array.isArray(health.exerciseRecords) ? health.exerciseRecords : [];
     this.weightRecords = Array.isArray(health.weightRecords) ? health.weightRecords : [];
     this.foodFavorites = Array.isArray(health.foodFavorites) ? health.foodFavorites : [];
-    this.messages = Array.isArray(health.messages) && health.messages.length > 0 ? health.messages : this.messages;
+    this.messages = Array.isArray(health.messages) && health.messages.length > 0
+      ? normalizeAssistantMessages(health.messages)
+      : this.messages;
   }
 
   capturePersistentState(): AppPersistentState {
@@ -565,7 +567,7 @@ struct Index {
         exerciseRecords: this.exerciseRecords,
         weightRecords: this.weightRecords,
         foodFavorites: this.foodFavorites,
-        messages: this.messagesForModel(this.messages)
+        messages: normalizeAssistantMessages(this.messagesForModel(this.messages))
       }
     };
   }

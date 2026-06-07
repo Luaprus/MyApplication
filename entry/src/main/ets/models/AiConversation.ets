@@ -39,6 +39,24 @@ export function sanitizeAssistantReply(content: string): string {
     .trim();
 }
 
+export function normalizeAssistantMessages(history: ChatMessage[]): ChatMessage[] {
+  let normalized: ChatMessage[] = [];
+  for (let index = 0; index < history.length; index++) {
+    let message: ChatMessage = history[index];
+    if (message.role === 'assistant' && message.isThinking !== true) {
+      normalized.push({
+        id: message.id,
+        role: message.role,
+        content: sanitizeAssistantReply(message.content),
+        isThinking: message.isThinking
+      });
+    } else {
+      normalized.push(message);
+    }
+  }
+  return normalized;
+}
+
 export function createPendingAiQuestion(history: ChatMessage[], content: string, requestId: number): PendingAiQuestion {
   let stableMessages: ChatMessage[] = messagesForModel(history);
   let userMessage: ChatMessage = {

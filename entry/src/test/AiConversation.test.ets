@@ -1,6 +1,6 @@
 import { describe, it, expect } from '@ohos/hypium';
 import { ChatMessage } from '../main/ets/models/AppState';
-import { buildDeepSeekMessages, createPendingAiQuestion, messagesForModel, PendingAiQuestion, replaceThinkingMessage, sanitizeAssistantReply } from '../main/ets/models/AiConversation';
+import { buildDeepSeekMessages, createPendingAiQuestion, messagesForModel, normalizeAssistantMessages, PendingAiQuestion, replaceThinkingMessage, sanitizeAssistantReply } from '../main/ets/models/AiConversation';
 import { DeepSeekMessage } from '../main/ets/services/DeepSeekService';
 
 export default function aiConversationTest() {
@@ -38,6 +38,24 @@ export default function aiConversationTest() {
       let reply: string = sanitizeAssistantReply('---\n\n### \ud83c\udfaf \u4e0b\u5468\u76ee\u6807\n1. **\u6bcf\u65e5\u589e\u52a0 3000-5000 \u6b65**\uff1a\u53ef\u5206\u6563\u5728\u996d\u540e\u3002\n\n---\n\n\u5982\u679c\u4f60\u60f3\uff0c\u6211\u4e5f\u53ef\u4ee5\u8f6c\u4e3a\u63d0\u9192\u4efb\u52a1\u3002');
 
       expect(reply).assertEqual('\ud83c\udfaf \u4e0b\u5468\u76ee\u6807\n1. \u6bcf\u65e5\u589e\u52a0 3000-5000 \u6b65\uff1a\u53ef\u5206\u6563\u5728\u996d\u540e\u3002\n\n\u5982\u679c\u4f60\u60f3\uff0c\u6211\u4e5f\u53ef\u4ee5\u8f6c\u4e3a\u63d0\u9192\u4efb\u52a1\u3002');
+    });
+
+    it('normalizeAssistantMessages should clean restored assistant history only', 0, () => {
+      let normalized: ChatMessage[] = normalizeAssistantMessages([
+        {
+          id: 1,
+          role: 'assistant',
+          content: '### \ud83d\udcca \u672c\u5468 AI \u5065\u5eb7\u5468\u62a5\n\n#### \u2705 \u505a\u5f97\u597d\u7684\u5730\u65b9\n- **\u996e\u98df\u63a7\u5236\u5230\u4f4d**\uff1a\u70ed\u91cf\u7a33\u5b9a\u3002'
+        },
+        {
+          id: 2,
+          role: 'user',
+          content: '### \u7528\u6237\u81ea\u5df1\u8f93\u5165\u7684\u6587\u672c'
+        }
+      ]);
+
+      expect(normalized[0].content).assertEqual('\ud83d\udcca \u672c\u5468 AI \u5065\u5eb7\u5468\u62a5\n\n\u2705 \u505a\u5f97\u597d\u7684\u5730\u65b9\n- \u996e\u98df\u63a7\u5236\u5230\u4f4d\uff1a\u70ed\u91cf\u7a33\u5b9a\u3002');
+      expect(normalized[1].content).assertEqual('### \u7528\u6237\u81ea\u5df1\u8f93\u5165\u7684\u6587\u672c');
     });
 
     it('buildDeepSeekMessages should prepend system prompt and limit recent history', 0, () => {
